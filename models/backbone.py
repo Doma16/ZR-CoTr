@@ -10,7 +10,6 @@ class BackBone(nn.Module):
         self.model = resnet18(weights=ResNet18_Weights.DEFAULT)
         self.layers = list(self.model.children())[:-3]
 
-        self.model.eval()
     def forward(self, x):
         
         for idx, layer in enumerate(self.layers):
@@ -19,6 +18,8 @@ class BackBone(nn.Module):
         return x
 
 
+
+# ------TEST SECTION------
 def test():
     print('Backbone test: ...')
     
