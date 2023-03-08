@@ -3,18 +3,20 @@ import torchvision
 import torchvision.transforms as t
 import torch
 
-print(torch.__version__)
-
 class KittiDataset(Dataset):
     def __init__(self, root, split='train', transform = None):
         super().__init__()
         self.root = root
         self.split = split
         self.transform = transform
-        ds = torchvision.datasets.Kitti2015Stereo(root=root, split=split, transforms=transform)
+        self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split=split, transforms=transform)
+        print('CHECK LENGTH IN __len__, gives 400 should give 200', f'{self.ds.__len__}')
 
-        breakpoint()
-
+    def __len__(self):
+        return len(self.ds)
+    
+    def __getitem__(self, index):
+        return self.ds.__getitem__(index)
 
 def test():
 
