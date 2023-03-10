@@ -33,6 +33,10 @@ class KittiDataset(Dataset):
         dmap1 = dmap[0]
         dmap2 = dmap[1]
 
+        # SHOULD COLLECT QUERIES BEFORE RESIZING
+        # ...
+        breakpoint()
+
         # RESIZING
         resize = t.Resize(size=(self.img_size, self.img_size))
 
@@ -50,7 +54,6 @@ class KittiDataset(Dataset):
         dmap1 = np.array(dmap1)
         dmap2 = np.array(dmap2)
 
-        breakpoint()
         # TO TENSOR
         img1 = TF.to_tensor(img1)
         img2 = TF.to_tensor(img2)
