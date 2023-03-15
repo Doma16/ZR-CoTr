@@ -46,9 +46,11 @@ class T_E_Layer(nn.Module):
 
         self.activation = nn.ReLU()
 
-    def forward(self,x):
-        # Missing positional embedding
-        q = k = x
+    def pos_embed(self, x, pos):
+        return x if pos is None else x + pos
+
+    def forward(self,x, pos):
+        q = k = self.pos_embed(x, pos)
 
         x2 = self.attn(query=q,
                          key=k,
@@ -82,10 +84,12 @@ class T_D_Layer(nn.Module):
         
         self.activation = nn.ReLU()
 
-    def forward(self, x, memory):
-        # missing positional
-        q = x
-        k = x
+    def pos_embed(self, x, pos):
+        return x if pos is None else x + pos
+
+    def forward(self, x, memory, pos, query_pos):
+        q = self.pos_embed(x, query_pos)
+        k = self.pos_embed(memory, pos)
         x2 = self.attn(query=q,
                        key=k,
                        value=memory)

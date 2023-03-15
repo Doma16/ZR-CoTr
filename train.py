@@ -9,6 +9,8 @@ from utils import kitti_transform
 
 BATCH_SIZE = 8
 
+# for Adam: beta1 = 0.9, beta2 = 0.98 , smallE = 10e-9
+
 backboneEncoder = BackBone().eval()
 
 dataset = KittiDataset(root='../dataset', transforms=kitti_transform)
