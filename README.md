@@ -1,3 +1,3 @@
 # Završni rad
 
-tema još nedefinirana
+tema CoTr - Correspondence Transformer for Matching Across Images
