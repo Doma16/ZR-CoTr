@@ -1,12 +1,13 @@
 import torch
 import torch.nn as nn
+from sympy import betainc_regularized
 
 from torchvision.models import resnet18, ResNet18_Weights
 
 class BackBone(nn.Module):
+
     def __init__(self):
         super(BackBone, self).__init__()
-
         self.model = resnet18(weights=ResNet18_Weights.DEFAULT)
         self.layers = list(self.model.children())[:-3]
 
@@ -25,7 +26,8 @@ def test():
     
     model = BackBone()
     assert (model(torch.randn(1,3,256,256)).cpu().detach().numpy().shape) == (1,256,16,16)
-    
+
+    breakpoint()
     print('Test Complete!')
 
 if __name__ == '__main__':
