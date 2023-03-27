@@ -1,8 +1,13 @@
 import torch
 import torch.nn as nn
-from sympy import betainc_regularized
+import torch.nn.functional as F
 
 from torchvision.models import resnet18, ResNet18_Weights
+
+from misc import nested_tensor_from_tensor_list
+from misc import NestedTensor
+
+MAX_SIZE = 256
 
 class BackBone(nn.Module):
 
@@ -13,10 +18,25 @@ class BackBone(nn.Module):
 
     def forward(self, x):
         
+        y = x.tensors
+        assert y.shape[2:] == (MAX_SIZE, 2*MAX_SIZE)
+        
+        left = y[..., 0:MAX_SIZE]
+        right = y[..., MAX_SIZE : 2*MAX_SIZE]
+        
         for idx, layer in enumerate(self.layers):
-            x = layer(x)
+            left = layer(left)
+            right = layer(right)
 
-        return x
+        img = torch.cat([left, right], dim=-1)
+
+        m = x.mask
+        assert m is not None
+        mask = F.interpolate(m[None].float(), size=img.shape[-2:]).to(torch.bool)[0]
+
+        out = NestedTensor(img,mask)
+        
+        return out
 
 
 
@@ -25,7 +45,11 @@ def test():
     print('Backbone test: ...')
     
     model = BackBone()
-    assert (model(torch.randn(1,3,256,256)).cpu().detach().numpy().shape) == (1,256,16,16)
+
+    img = torch.randn((1,3,256,512))
+    img = nested_tensor_from_tensor_list(img)   
+
+    model(img)
 
     breakpoint()
     print('Test Complete!')

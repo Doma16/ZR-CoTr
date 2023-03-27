@@ -6,6 +6,9 @@ from .tranformer import Transformer
 from .pos_embed import NerfPositionalEncoding
 from .mlp import MLP
 
+from misc import nested_tensor_from_tensor_list
+from misc import NestedTensor
+
 class COTR(nn.Module):
     
     def __init__(self):
@@ -16,8 +19,14 @@ class COTR(nn.Module):
         hidden_dim = self.transformer.emb_dim
         self.mlp = MLP(hidden_dim, hidden_dim, 2, 3)
         
-    def forward(self, x, queries):
+    def forward(self, x, queries):    
+        #to NestedTensor
+        y = nested_tensor_from_tensor_list(x)
         
-        y = self.backbone(x)
+        #backbone
+        y = self.backbone(y)
+        
+        #positional
+        
         
         breakpoint()
