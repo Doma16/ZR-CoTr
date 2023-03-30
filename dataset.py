@@ -7,6 +7,9 @@ import torch
 import numpy as np
 from PIL import Image
 
+import cv2
+import matplotlib.pyplot as plt
+from utils import two_images_side_by_side
 
 class KittiDataset(Dataset):
     def __init__(self, root, split='train', transforms = None, img_size=256):
@@ -32,29 +35,70 @@ class KittiDataset(Dataset):
 
         dmap1 = dmap[0]
         dmap2 = dmap[1]
-
-        # SHOULD COLLECT QUERIES BEFORE RESIZING ?
-        # ...
-        '''
-        ch ,size_y, size_x = dmap1.shape
-        assert ch == 1
-        indicies = np.array(dmap1 > 0)
-        indicies = indicies.squeeze(0)
-
-        query_points = []
-        for i in range(size_x):
-            for j in range(size_y):
-                if indicies[j][i]:
-                    query_points.append([(i *1. / size_x ,j* 1. / size_y), ((i - dmap1[0][j][i]) * 1. / size_x, j * 1. / size_y)])
-        '''
         
-        # RESIZING
-        resize = t.Resize(size=(self.img_size, self.img_size))
 
+        # Collecting queries using FAST Feature detector
+        # ...
+   
+        img1 = np.array(img1)
+        img2 = np.array(img2)
+        
+        assert img1.shape == img2.shape
+        oh, ow, oc = img1.shape
+        
+        fast = cv2.FastFeatureDetector_create()
+        
+        dmapt = dmap1.squeeze(0) > 0
+        dmapt = dmapt.astype(np.uint8)
+        
+        imgt = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
+        
+        kp = fast.detect(imgt, dmapt)
+        pix = cv2.drawKeypoints(img1, kp, None, color=(0,255,0))
+        kp = [[int(p.pt[0]), int(p.pt[1])] for p in kp]
+        # How to turn kp to queries (what shape ? np.array or dict or ?)
+
+        targets = [ [int(p[0]-dmap1[0,p[1],p[0]]), p[1]] for p in kp]
+        
+        kp = np.array(kp).astype(np.float32)
+        targets = np.array(targets).astype(np.float32)
+
+        assert kp.dtype is np.dtype('float32')
+        assert targets.dtype is np.dtype('float32')
+        
+        # CORRS TO 0-1 interval
+        kp[:, 0] /= ow
+        kp[:, 1] /= oh
+
+        targets[:, 0] /= ow
+        targets[:, 1] /= oh
+
+        # COMBINE CORRS
+        kp_shape = kp.shape
+        t_shape = targets.shape
+        
+        kp = kp.reshape(1, kp_shape[0], kp_shape[1])
+        targets = targets.reshape(1, t_shape[0], t_shape[1])
+    
+        corrs = np.concatenate((kp,targets), axis=0)
+        
+        # BLUR
+        ksize = (5,5)
+        img1 = cv2.blur(img1, ksize)
+        img2 = cv2.blur(img2, ksize)
+
+        # RESIZING
+        new_size = (self.img_size, self.img_size)
+        img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_CUBIC)
+        img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_CUBIC)
+    
+      
+        '''
+        resize = t.Resize(size=(self.img_size, self.img_size))
+        
         img1 = resize(img1)
         img2 = resize(img2)
-        
-        '''
+
         dmap1 = dmap1.reshape((dmap1.shape[1], dmap1.shape[2]))
         dmap1 = Image.fromarray(dmap1)
         dmap2 = dmap2.reshape((dmap2.shape[1], dmap2.shape[2]))
@@ -75,7 +119,7 @@ class KittiDataset(Dataset):
 
         #dmap = (dmap1, dmap2)
     
-        dmap = (dmap1,dmap2)
+        dmap = (corrs,dmap2)
 
         return imgs, dmap, valid_masks
 
@@ -83,7 +127,7 @@ def test():
 
     ds = KittiDataset(root='../dataset/')
 
-    ds[0]
+    i0 = ds[0]
     
     breakpoint()
     1

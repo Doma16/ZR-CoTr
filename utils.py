@@ -19,14 +19,13 @@ def get_query(dmap, n_queries=1):
     '''
     
     breakpoint()
-                    return query_points
+    return query_points
 
 def two_images_side_by_side(img1, img2):
     assert img1.shape == img2.shape
     assert img1.dtype == img2.dtype
     h, w, c = img1.shape
     
-    breakpoint()
     canvas = np.zeros((h, 2 * w, c), dtype=img1.dtype)
     canvas[:, 0 * w:1 * w, :] = img1
     canvas[:, 1 * w:2 * w, :] = img2

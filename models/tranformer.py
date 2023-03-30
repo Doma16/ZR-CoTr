@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class Transformer(nn.Module):
 
-    def __init__(self, emb_dim=128, nhead=8, 
+    def __init__(self, emb_dim=256, nhead=8, 
                  num_encoder_layers=6,
                  num_decoder_layers=6,
                  return_intermediate=False):
@@ -22,14 +22,16 @@ class Transformer(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_normal_(p)
                 
-    def forward(self, x, query, pos):
+    def forward(self, x, mask, query, pos):
         b, c, h, w = x.shape
         x = x.flatten(2).permute(2,0,1)
         pos = pos.flatten(2).permute(2,0,1)
+        mask = mask.flatten(1) 
         
         tgt = torch.zeros_like(query)
-        memory = self.encoder(x, pos)
-        hs = self.decoder(tgt, memory, pos, query)
+        memory = self.encoder(x, src_mask=mask, pos=pos)
+        
+        hs = self.decoder(tgt, memory, memory_key_mask=mask, pos=pos, query=query)
         
         return hs.transpose(1,2), memory.permute(1,2,0).view(b,c,h,w)
 
@@ -40,11 +42,11 @@ class TransformerEncoder(nn.Module):
         self.layers = nn.ModuleList( T_E_Layer(emb_dim, nhead)  for i in range(num_layers) )
         self.num_layers = num_layers
         
-    def forward(self, x, pos):
+    def forward(self, x, mask=None, src_mask=None, pos=None):
         y = x
         
         for layer in self.layers:
-            y = layer(y, pos)
+            y = layer(y, mask, src_mask, pos)
             
         return y
 
@@ -58,13 +60,13 @@ class TransformerDecoder(nn.Module):
         self.return_intermediate = return_intermediate
         self.norm = nn.LayerNorm(emb_dim)
 
-    def forward(self, x, memory, pos, query):
+    def forward(self, x, memory, x_mask=None, memory_mask=None, x_key_mask=None, memory_key_mask=None, pos=None, query=None):
         y = x
         
         intermediate = []
         
         for layer in self.layers:
-            y = layer(y, memory, pos, query)
+            y = layer(y, memory, x_mask=x_mask, memory_mask=memory_mask, x_key_mask=x_key_mask, memory_key_mask=memory_key_mask, pos=pos, query_pos=query)
             if self.return_intermediate:
                 intermediate.append(self.norm(y))
                 
@@ -78,9 +80,6 @@ class TransformerDecoder(nn.Module):
             return torch.stack(intermediate)
         
         return y.unsqueeze(0)
-            
-            
-        return y
 
 class T_E_Layer(nn.Module):
     
@@ -101,15 +100,18 @@ class T_E_Layer(nn.Module):
 
         self.activation = nn.ReLU()
 
-    def pos_embed(self, x, pos):
+    def add_pos_embed(self, x, pos):
         return x if pos is None else x + pos
 
-    def forward(self,x, pos):
-        q = k = self.pos_embed(x, pos)
+    def forward(self,x, mask=None, x_key_mask=None, pos=None):
+        q = k = self.add_pos_embed(x, pos)
 
+        
         x2 = self.attn(query=q,
                          key=k,
-                         value=x)
+                         value=x,
+                         attn_mask=mask,
+                         key_padding_mask=x_key_mask)[0]
         
         x = x + self.dropout1(x2)
         x = self.norm1(x)
@@ -139,15 +141,17 @@ class T_D_Layer(nn.Module):
         
         self.activation = nn.ReLU()
 
-    def pos_embed(self, x, pos):
+    def add_pos_embed(self, x, pos):
         return x if pos is None else x + pos
-
-    def forward(self, x, memory, pos, query_pos):
-        q = self.pos_embed(x, query_pos)
-        k = self.pos_embed(memory, pos)
+    
+    def forward(self, x, memory, x_mask=None, memory_mask=None, x_key_mask=None, memory_key_mask=None, pos=None, query_pos=None):
+        q = self.add_pos_embed(x, query_pos)
+        k = self.add_pos_embed(memory, pos)
+        
         x2 = self.attn(query=q,
                        key=k,
-                       value=memory)
+                       value=memory,
+                       key_padding_mask=memory_key_mask)[0]
         
         x = x + self.dropout1(x2)
         x = self.norm1(x)
