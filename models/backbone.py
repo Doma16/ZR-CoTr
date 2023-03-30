@@ -4,8 +4,8 @@ import torch.nn.functional as F
 
 from torchvision.models import resnet18, ResNet18_Weights
 
-from misc import nested_tensor_from_tensor_list
-from misc import NestedTensor
+from models.misc import nested_tensor_from_tensor_list
+from models.misc import NestedTensor
 
 MAX_SIZE = 256
 

@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 
-from backbone import BackBone
-from tranformer import Transformer
-from pos_embed import NerfPositionalEncoding, PositionalEmbedding
-from mlp import MLP
+from models.backbone import BackBone
+from models.tranformer import Transformer
+from models.pos_embed import NerfPositionalEncoding, PositionalEmbedding
+from models.mlp import MLP
 
-from misc import nested_tensor_from_tensor_list
-from misc import NestedTensor
+from models.misc import nested_tensor_from_tensor_list
+from models.misc import NestedTensor
 
 class COTR(nn.Module):
     
@@ -44,7 +44,7 @@ class COTR(nn.Module):
         
         #MLP
         out_corr = self.mlp(y)        
-        out = {'pred_corrs', out_corr[-1]}
+        out = {'pred_corrs': out_corr[-1]}
 
         return out
 

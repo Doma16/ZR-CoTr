@@ -54,7 +54,7 @@ class KittiDataset(Dataset):
         imgt = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
         
         kp = fast.detect(imgt, dmapt)
-        pix = cv2.drawKeypoints(img1, kp, None, color=(0,255,0))
+        #pix = cv2.drawKeypoints(img1, kp, None, color=(0,255,0))
         kp = [[int(p.pt[0]), int(p.pt[1])] for p in kp]
         # How to turn kp to queries (what shape ? np.array or dict or ?)
 
@@ -92,7 +92,7 @@ class KittiDataset(Dataset):
         img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_CUBIC)
         img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_CUBIC)
     
-      
+        imgR = two_images_side_by_side(img1, img2)
         '''
         resize = t.Resize(size=(self.img_size, self.img_size))
         
@@ -112,10 +112,13 @@ class KittiDataset(Dataset):
         '''
 
         # TO TENSOR
+        '''
         img1 = TF.to_tensor(img1)
         img2 = TF.to_tensor(img2)
+        '''
+        imgR = TF.to_tensor(imgR)
         
-        imgs = (img1, img2)
+        imgs = (imgR, img2)
 
         #dmap = (dmap1, dmap2)
     
@@ -126,11 +129,8 @@ class KittiDataset(Dataset):
 def test():
 
     ds = KittiDataset(root='../dataset/')
-
     i0 = ds[0]
-    
-    breakpoint()
-    1
+    return
  
 if __name__ == '__main__':
     test()

@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import math
 
 # for testing
-from misc import nested_tensor_from_tensor_list
-from misc import NestedTensor
+from models.misc import nested_tensor_from_tensor_list
+from models.misc import NestedTensor
 
 class PositionalEmbedding(nn.Module):
     def __init__(self, num_pos_feats=64):
