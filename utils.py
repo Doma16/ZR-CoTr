@@ -29,5 +29,5 @@ def two_images_side_by_side(img1, img2):
     canvas = np.zeros((h, 2 * w, c), dtype=img1.dtype)
     canvas[:, 0 * w:1 * w, :] = img1
     canvas[:, 1 * w:2 * w, :] = img2
-    
+
     return canvas

@@ -1,6 +1,6 @@
 from torch.utils.data import Dataset
 import torchvision
-import torchvision.transforms as t
+import torchvision.transforms as tform
 import torchvision.transforms.functional as TF
 import torch
 
@@ -21,7 +21,6 @@ class KittiDataset(Dataset):
         self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split=split, transforms=self.kitti_transform)
         self.ds._has_built_in_disparity_mask = False
 
-
     def __len__(self):
         return len(self.ds) // 2
     
@@ -36,15 +35,35 @@ class KittiDataset(Dataset):
         dmap1 = dmap[0]
         dmap2 = dmap[1]
         
-
-        # Collecting queries using FAST Feature detector
-        # ...
-   
         img1 = np.array(img1)
         img2 = np.array(img2)
         
         assert img1.shape == img2.shape
         oh, ow, oc = img1.shape
+        
+        #quick test.py fix, need better fix
+        if dmap1 is None:
+            ksize = (5,5)
+            img1 = cv2.blur(img1, ksize)
+            img2 = cv2.blur(img2, ksize)
+
+            # RESIZING
+            new_size = (self.img_size, self.img_size)
+            img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_CUBIC)
+            img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_CUBIC)
+        
+            imgR = two_images_side_by_side(img1, img2)
+
+            imgR = TF.to_tensor(imgR)
+             
+            imgs = (imgR, img2)
+            
+            dmap = (0,0)
+            return imgs, dmap, valid_masks
+        # Collecting queries using FAST Feature detector
+        # ...
+   
+
         
         maxX, maxY = dmap1.shape[1:]
         fast = cv2.FastFeatureDetector_create()
@@ -58,10 +77,7 @@ class KittiDataset(Dataset):
         #pix = cv2.drawKeypoints(img1, kp, None, color=(0,255,0))
         kp = [[int(p.pt[0]), int(p.pt[1])] for p in kp if p.pt[1] < maxX and p.pt[0] < maxY]
         # How to turn kp to queries (what shape ? np.array or dict or ?)
-
-        maxX = max(kp)
-        maxY = max(kp, key= lambda x: x[1])
-
+   
         targets = [ [int(p[0]-dmap1[0,p[1],p[0]]), p[1]] for p in kp]
         
         kp = np.array(kp).astype(np.float32)
@@ -121,6 +137,8 @@ class KittiDataset(Dataset):
         img2 = TF.to_tensor(img2)
         '''
         imgR = TF.to_tensor(imgR)
+        #imgR = torch.tensor(imgR)
+        #imgR = imgR.reshape(3,256,512)
         
         imgs = (imgR, img2)
 

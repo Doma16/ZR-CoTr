@@ -20,7 +20,7 @@ class BackBone(nn.Module):
         
         y = x.tensors
         assert y.shape[2:] == (MAX_SIZE, 2*MAX_SIZE)
-        
+
         left = y[..., 0:MAX_SIZE]
         right = y[..., MAX_SIZE : 2*MAX_SIZE]
         
