@@ -46,6 +46,7 @@ class KittiDataset(Dataset):
         assert img1.shape == img2.shape
         oh, ow, oc = img1.shape
         
+        maxX, maxY = dmap1.shape[1:]
         fast = cv2.FastFeatureDetector_create()
         
         dmapt = dmap1.squeeze(0) > 0
@@ -55,8 +56,11 @@ class KittiDataset(Dataset):
         
         kp = fast.detect(imgt, dmapt)
         #pix = cv2.drawKeypoints(img1, kp, None, color=(0,255,0))
-        kp = [[int(p.pt[0]), int(p.pt[1])] for p in kp]
+        kp = [[int(p.pt[0]), int(p.pt[1])] for p in kp if p.pt[1] < maxX and p.pt[0] < maxY]
         # How to turn kp to queries (what shape ? np.array or dict or ?)
+
+        maxX = max(kp)
+        maxY = max(kp, key= lambda x: x[1])
 
         targets = [ [int(p[0]-dmap1[0,p[1],p[0]]), p[1]] for p in kp]
         
