@@ -17,8 +17,8 @@ class KittiDataset(Dataset):
         self.img_size = img_size
         self.root = root
         self.split = split
-        self.transforms = transforms
-        self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split=split, transforms=self.kitti_transform)
+        self.transforms = self.kitti_transform_train if split == 'train' else self.kitti_transform_test
+        self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split=split, transforms=self.transforms)
         self.ds._has_built_in_disparity_mask = False
 
     def __len__(self):
@@ -27,7 +27,7 @@ class KittiDataset(Dataset):
     def __getitem__(self, index):
         return self.ds.__getitem__(index)
 
-    def kitti_transform(self, imgs, dmap, valid_masks):
+    def kitti_transform_train(self, imgs, dmap, valid_masks):
         
         img1 = imgs[0]
         img2 = imgs[1]
@@ -41,29 +41,8 @@ class KittiDataset(Dataset):
         assert img1.shape == img2.shape
         oh, ow, oc = img1.shape
         
-        #quick test.py fix, need better fix
-        if dmap1 is None:
-            ksize = (5,5)
-            img1 = cv2.blur(img1, ksize)
-            img2 = cv2.blur(img2, ksize)
-
-            # RESIZING
-            new_size = (self.img_size, self.img_size)
-            img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_CUBIC)
-            img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_CUBIC)
-        
-            imgR = two_images_side_by_side(img1, img2)
-
-            imgR = TF.to_tensor(imgR)
-             
-            imgs = (imgR, img2)
-            
-            dmap = (0,0)
-            return imgs, dmap, valid_masks
         # Collecting queries using FAST Feature detector
         # ...
-   
-
         
         maxX, maxY = dmap1.shape[1:]
         fast = cv2.FastFeatureDetector_create()
@@ -113,29 +92,9 @@ class KittiDataset(Dataset):
         img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_CUBIC)
     
         imgR = two_images_side_by_side(img1, img2)
-        '''
-        resize = t.Resize(size=(self.img_size, self.img_size))
-        
-        img1 = resize(img1)
-        img2 = resize(img2)
-
-        dmap1 = dmap1.reshape((dmap1.shape[1], dmap1.shape[2]))
-        dmap1 = Image.fromarray(dmap1)
-        dmap2 = dmap2.reshape((dmap2.shape[1], dmap2.shape[2]))
-        dmap2 = Image.fromarray(dmap2)
-
-        dmap1 = dmap1.resize((self.img_size, self.img_size), resample=Image.Resampling.BICUBIC)
-        dmap2 = dmap2.resize((self.img_size, self.img_size), resample=Image.Resampling.BICUBIC)
-        
-        dmap1 = np.array(dmap1)
-        dmap2 = np.array(dmap2)
-        '''
 
         # TO TENSOR
-        '''
-        img1 = TF.to_tensor(img1)
-        img2 = TF.to_tensor(img2)
-        '''
+
         imgR = TF.to_tensor(imgR)
         #imgR = torch.tensor(imgR)
         #imgR = imgR.reshape(3,256,512)
@@ -147,6 +106,24 @@ class KittiDataset(Dataset):
         dmap = (corrs,dmap2)
 
         return imgs, dmap, valid_masks
+
+    def kitti_transform_test(self, imgs, dmap, valid_masks):
+        
+        ksize = (5,5)
+        img1 = imgs[0]
+        img2 = imgs[1]
+        
+        img1 = np.array(img1)
+        img2 = np.array(img2)
+        
+        fast = cv2.FastFeatureDetector_create()
+        
+        imgt = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
+        
+        kp = fast.detect(imgt, None)
+        pix = cv2.drawKeypoints(img1, kp, None, color=(255,0,0))
+        
+        pass
 
 def test():
 

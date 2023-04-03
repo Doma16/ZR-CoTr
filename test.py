@@ -29,7 +29,7 @@ loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 model = COTR()
 model = model.to(device)
 
-model.load_state_dict(torch.load('./saved/bid190.pth'))
+model.load_state_dict(torch.load('./saved/finalBoss_v1.pth'))
 
 
 for batchid, (img, _, _) in enumerate(loader):
@@ -49,9 +49,16 @@ for batchid, (img, _, _) in enumerate(loader):
     query = TF.to_tensor(query)
     query = query.reshape(1,4,2)
 
-    breakpoint()
-    
     pred = model(img, query)['pred_corrs']
+
+    #sketch
+    
+    tstq = query.detach().numpy()
+    tstp = pred.detach().numpy()
+    
+    tstq = tstq * IMG_SIZE
+    tstp = tstp * IMG_SIZE
+    
     
     breakpoint()
     
