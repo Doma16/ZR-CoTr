@@ -29,7 +29,7 @@ loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 model = COTR()
 model = model.to(device)
 
-model.load_state_dict(torch.load('./saved/finalBoss_v3.pth'))
+model.load_state_dict(torch.load('./saved/finalBoss_v1.pth'))
 model.eval()
 
 for batchid, (img, _, query) in enumerate(loader):

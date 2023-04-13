@@ -53,6 +53,8 @@ class KittiDataset(Dataset):
         imgt = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
         
         kp = fast.detect(imgt, dmapt)
+        
+      
         #pix = cv2.drawKeypoints(img1, kp, None, color=(0,255,0))
         kp = [[int(p.pt[0]), int(p.pt[1])] for p in kp if p.pt[1] < maxX and p.pt[0] < maxY]
         # How to turn kp to queries (what shape ? np.array or dict or ?)
@@ -80,6 +82,8 @@ class KittiDataset(Dataset):
         targets = targets.reshape(1, t_shape[0], t_shape[1])
     
         corrs = np.concatenate((kp,targets), axis=0)
+        mask = np.random.choice(corrs.shape[1], 100)
+        corrs = corrs[:, mask, :]
         
         # BLUR
         ksize = (5,5)
@@ -101,6 +105,7 @@ class KittiDataset(Dataset):
         
         imgs = (imgR, img2)
 
+        breakpoint()
         #dmap = (dmap1, dmap2)
     
         dmap = (corrs,dmap2)
