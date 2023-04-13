@@ -61,16 +61,22 @@ def start(path='../dataset'):
         pred = model(img, query)['pred_corrs']
         loss = F.mse_loss(pred, target)
         
-        img_reverse = torch.cat([img[..., IMG_SIZE:], img[..., :IMG_SIZE]], axis=-1)
-        query_reverse = pred.clone()
+        #img_reverse = torch.cat([img[..., IMG_SIZE:], img[..., :IMG_SIZE]], axis=-1)
+        #query_reverse = pred.clone()
         
-        cycle = model(img_reverse, query_reverse)['pred_corrs']
-        mask = torch.norm(cycle - query, dim=-1) < 100 / IMG_SIZE
-        cycle_loss = 0
+        #cycle = model(img_reverse, query_reverse)['pred_corrs']
+        #mask = torch.norm(cycle - query, dim=-1) < 100 / IMG_SIZE
+        #cycle_loss = 0
+        #if mask.sum() > 0:
+        #    cycle_loss = F.mse_loss(cycle[mask], query[mask])
+        #    loss += cycle_loss
+        
+        cycle = model(img, pred)['pred_corrs']
+        mask = torch.norm(cycle - query, dim=-1) < 10 / IMG_SIZE
         if mask.sum() > 0:
             cycle_loss = F.mse_loss(cycle[mask], query[mask])
             loss += cycle_loss
-            
+        
         loss_data = loss.data.item()
         if np.isnan(loss_data):
             print('loss is nan')

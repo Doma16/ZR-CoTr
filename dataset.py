@@ -109,21 +109,46 @@ class KittiDataset(Dataset):
 
     def kitti_transform_test(self, imgs, dmap, valid_masks):
         
-        ksize = (5,5)
         img1 = imgs[0]
         img2 = imgs[1]
         
         img1 = np.array(img1)
         img2 = np.array(img2)
+        oh, ow, oc = img1.shape
         
         fast = cv2.FastFeatureDetector_create()
         
         imgt = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
         
         kp = fast.detect(imgt, None)
-        pix = cv2.drawKeypoints(img1, kp, None, color=(255,0,0))
+        #pix = cv2.drawKeypoints(img1, kp, None, color=(255,0,0))
         
-        pass
+        pts = 20
+        step = int(len(kp) / pts)
+        kp = kp[::step]
+        
+        kp = [[int(p.pt[0]), int(p.pt[1])] for p in kp]
+        kp = np.array(kp).astype(np.float32)
+        kp[:, 0] /= ow
+        kp[:, 1] /= oh
+        
+        ksize = (5,5)
+        img1 = cv2.blur(img1, ksize)
+        img2 = cv2.blur(img2, ksize)
+        
+        new_size = (self.img_size, self.img_size)
+        img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_CUBIC)
+        img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_CUBIC)
+        
+        imgR = two_images_side_by_side(img1, img2)
+        
+        imgR = TF.to_tensor(imgR)
+
+        imgs = (imgR, img2)
+        
+        dmap = (kp, 0)
+        
+        return imgs, dmap, valid_masks
 
 def test():
 

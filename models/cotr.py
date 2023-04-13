@@ -7,14 +7,13 @@ from models.pos_embed import NerfPositionalEncoding, PositionalEmbedding
 from models.mlp import MLP
 
 from models.misc import nested_tensor_from_tensor_list
-from models.misc import NestedTensor
 
 class COTR(nn.Module):
     
     def __init__(self):
         super().__init__()
         self.backbone = BackBone()
-        self.transformer = Transformer(return_intermediate=True)
+        self.transformer = Transformer(return_intermediate=True, dropout=0.4)
         self.pos_emb = PositionalEmbedding(128)
         hidden_dim = self.transformer.emb_dim
         self.proj_q = NerfPositionalEncoding(hidden_dim // 4)

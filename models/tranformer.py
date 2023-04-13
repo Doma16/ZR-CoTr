@@ -6,7 +6,8 @@ class Transformer(nn.Module):
     def __init__(self, emb_dim=256, nhead=8, 
                  num_encoder_layers=6,
                  num_decoder_layers=6,
-                 return_intermediate=False):
+                 return_intermediate=False,
+                 dropout=0.1):
         super(Transformer, self).__init__()
 
         self.encoder = TransformerEncoder(emb_dim, nhead, num_encoder_layers)
@@ -37,9 +38,9 @@ class Transformer(nn.Module):
 
 class TransformerEncoder(nn.Module):
 
-    def __init__(self, emb_dim, nhead, num_layers):
+    def __init__(self, emb_dim, nhead, num_layers, dropout=0.1):
         super(TransformerEncoder, self).__init__()
-        self.layers = nn.ModuleList( T_E_Layer(emb_dim, nhead)  for i in range(num_layers) )
+        self.layers = nn.ModuleList( T_E_Layer(emb_dim, nhead, dropout=dropout)  for i in range(num_layers) )
         self.num_layers = num_layers
         
     def forward(self, x, mask=None, src_mask=None, pos=None):
@@ -52,9 +53,9 @@ class TransformerEncoder(nn.Module):
 
 class TransformerDecoder(nn.Module):
     
-    def __init__(self, emb_dim, nhead, num_layers, return_intermediate=False):
+    def __init__(self, emb_dim, nhead, num_layers, return_intermediate=False, dropout=0.1):
         super(TransformerDecoder, self).__init__()
-        self.layers = nn.ModuleList( T_D_Layer(emb_dim, nhead) for i in range(num_layers) )
+        self.layers = nn.ModuleList( T_D_Layer(emb_dim, nhead, dropout=dropout) for i in range(num_layers) )
         self.num_layers = num_layers
 
         self.return_intermediate = return_intermediate
