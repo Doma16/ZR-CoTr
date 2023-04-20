@@ -13,7 +13,7 @@ class COTR(nn.Module):
     def __init__(self):
         super().__init__()
         self.backbone = BackBone()
-        self.transformer = Transformer(return_intermediate=True, dropout=0.4)
+        self.transformer = Transformer(return_intermediate=True, dropout=0.1)
         self.pos_emb = PositionalEmbedding(128)
         hidden_dim = self.transformer.emb_dim
         self.proj_q = NerfPositionalEncoding(hidden_dim // 4)

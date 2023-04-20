@@ -105,7 +105,6 @@ class KittiDataset(Dataset):
         
         imgs = (imgR, img2)
 
-        breakpoint()
         #dmap = (dmap1, dmap2)
     
         dmap = (corrs,dmap2)
