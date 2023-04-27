@@ -41,7 +41,12 @@ def start(path='../dataset'):
         param.numel() for param in model.parameters()
     )
 
+    bb_params = sum(
+        param.numel() for param in model.backbone.parameters()
+    )
+
     print(f'Number of parameters: {total_params}')
+    print(f'Backbone parameters: {bb_params}')
     
     opt_list = [{'params': model.transformer.parameters(), 'lr': LR},
                 {'params': model.mlp.parameters(), 'lr': LR},
