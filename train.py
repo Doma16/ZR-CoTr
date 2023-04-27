@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from dataset import KittiDataset
-from utils import get_query
+from utils import get_query, plot_predictions
 
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
@@ -20,6 +20,7 @@ BATCH_SIZE = 1
 LR = 1e-4
 LR_BB = 0
 IMG_SIZE = 256
+EPOCHS = 1000
 
 # for Adam: beta1 = 0.9, beta2 = 0.98 , smallE = 10e-9
 
@@ -35,10 +36,16 @@ def start(path='../dataset'):
     torch.cuda.empty_cache()
     model = COTR()
     model = model.to(device)
+
+    total_params = sum(
+        param.numel() for param in model.parameters()
+    )
+
+    print(f'Number of parameters: {total_params}')
     
     opt_list = [{'params': model.transformer.parameters(), 'lr': LR},
                 {'params': model.mlp.parameters(), 'lr': LR},
-                {'params': model.pos_emb.parameters(), 'lr': LR},
+                {'params': model.proj_x.parameters(), 'lr': LR},
                 {'params': model.proj_q.parameters(), 'lr': LR}]
     
     # backbone train?
@@ -46,49 +53,49 @@ def start(path='../dataset'):
         opt_list.append({'params': model.backbone.parameters(), 'lr':LR_BB})
     
     opt = optim.Adam(opt_list)
-
-    for batchid, (img, _, corrs) in enumerate(loader):
-        
-        img = img.to(device)
-        corrs = corrs.to(device)
-        
-        query = corrs[:, 0, :, :]
-        target = corrs[:, 1, :, :]
-        
     
-        opt.zero_grad()
+    for _ in range(EPOCHS):
+        for batchid, (img, _, corrs) in enumerate(loader):
+            
+            img = img.to(device)
+            corrs = corrs.to(device)
+            
+            query = corrs[:, 0, :, :]
+            target = corrs[:, 1, :, :]
+            
         
-        pred = model(img, query)['pred_corrs']
-        loss = F.mse_loss(pred, target)
-        
-        #img_reverse = torch.cat([img[..., IMG_SIZE:], img[..., :IMG_SIZE]], axis=-1)
-        #query_reverse = pred.clone()
-        
-        #cycle = model(img_reverse, query_reverse)['pred_corrs']
-        #mask = torch.norm(cycle - query, dim=-1) < 100 / IMG_SIZE
-        #cycle_loss = 0
-        #if mask.sum() > 0:
-        #    cycle_loss = F.mse_loss(cycle[mask], query[mask])
-        #    loss += cycle_loss
-        
-        cycle = model(img, pred)['pred_corrs']
-        mask = torch.norm(cycle - query, dim=-1) < 10 / IMG_SIZE
-        if mask.sum() > 0:
-            cycle_loss = F.mse_loss(cycle[mask], query[mask])
-            loss += cycle_loss
-        
-        loss_data = loss.data.item()
-        if np.isnan(loss_data):
-            print('loss is nan')
             opt.zero_grad()
-        else:
-            loss.backward()
-        opt.step()    
+            
+            pred = model(img, query)['pred_corrs']
+            loss = torch.mean((pred-target)**2)
+            
+            img_reverse = torch.cat([img[..., IMG_SIZE:], img[..., :IMG_SIZE]], axis=-1)
+            query_reverse = pred.clone()
+            query_reverse[..., 0] = query_reverse[..., 0] - 0.5
         
-        print(batchid)
-        if batchid % 10 == 0:
-            torch.save(model.state_dict(), f'{path}/saved/bid{batchid}.pth')
-            print(f'Loss in b_id{batchid}: { loss.detach().numpy() }')
+            cycle = model(img_reverse, query_reverse)['pred_corrs']
+            cycle[..., 0] = cycle[..., 0] - 0.5 
+        
+            mask = torch.norm(cycle - query, dim=-1) < 100 / IMG_SIZE
+            cycle_loss = 0
+            if mask.sum() > 0:
+                cycle_loss = F.mse_loss(cycle[mask], query[mask])
+                loss += cycle_loss
+            
+            loss_data = loss.data.item()
+            if np.isnan(loss_data):
+                print('loss is nan')
+                opt.zero_grad()
+            else:
+                loss.backward()
+            opt.step()    
+            
+            if batchid % 10 == 0:
+                #torch.save(model.state_dict(), f'{path}/saved/bid{batchid}.pth')
+                print(f'Loss in b_id{batchid}: { loss.detach().numpy() }')
+                plot_predictions(img, query, pred, target, batchid, 'plot_test')
+
+
         #plt.imshow(preview)
         #print(preview.shape)
         

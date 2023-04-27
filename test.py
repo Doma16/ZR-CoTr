@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from dataset import KittiDataset
-from utils import get_query
+from utils import get_query, plot_predictions
 
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
@@ -29,7 +29,7 @@ loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 model = COTR()
 model = model.to(device)
 
-model.load_state_dict(torch.load('./saved/finalBoss_v7.pth'))
+model.load_state_dict(torch.load('./saved/plus200epoch.pth'))
 model.eval()
 
 for batchid, (img, _, query) in enumerate(loader):
@@ -39,6 +39,7 @@ for batchid, (img, _, query) in enumerate(loader):
 
     pred = model(img, query)['pred_corrs']
 
+    plot_predictions(img, query, pred, query, 'example_1', 'plot_test')
     #sketch
     
     tstq = query.detach().numpy()

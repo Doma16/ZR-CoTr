@@ -10,8 +10,8 @@ class Transformer(nn.Module):
                  dropout=0.1):
         super(Transformer, self).__init__()
 
-        self.encoder = TransformerEncoder(emb_dim, nhead, num_encoder_layers)
-        self.decoder = TransformerDecoder(emb_dim, nhead, num_decoder_layers, return_intermediate)
+        self.encoder = TransformerEncoder(emb_dim, nhead, num_encoder_layers, dropout=dropout)
+        self.decoder = TransformerDecoder(emb_dim, nhead, num_decoder_layers, return_intermediate, dropout=dropout)
 
         self.reset_parameters()
         
@@ -47,7 +47,7 @@ class TransformerEncoder(nn.Module):
         y = x
         
         for layer in self.layers:
-            y = layer(y, mask, src_mask, pos)
+            y = layer(y, mask, x_key_mask=src_mask, pos=pos)
             
         return y
 
@@ -65,7 +65,7 @@ class TransformerDecoder(nn.Module):
         y = x
         
         intermediate = []
-        
+
         for layer in self.layers:
             y = layer(y, memory, x_mask=x_mask, memory_mask=memory_mask, x_key_mask=x_key_mask, memory_key_mask=memory_key_mask, pos=pos, query_pos=query)
             if self.return_intermediate:
@@ -152,6 +152,7 @@ class T_D_Layer(nn.Module):
         x2 = self.attn(query=q,
                        key=k,
                        value=memory,
+                       attn_mask=memory_mask,
                        key_padding_mask=memory_key_mask)[0]
         
         x = x + self.dropout1(x2)

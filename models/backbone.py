@@ -35,7 +35,6 @@ class BackBone(nn.Module):
         mask = F.interpolate(m[None].float(), size=img.shape[-2:]).to(torch.bool)[0]
 
         out = NestedTensor(img,mask)
-        
         return out
 
 
