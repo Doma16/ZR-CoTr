@@ -21,6 +21,16 @@ LR = 1e-4
 LR_BB = 0
 IMG_SIZE = 256
 EPOCHS = 1000
+NUM_KP = 100
+
+#model params
+EMB_DIM = 256
+NHEAD = 8
+NUM_ENCODER_LAYERS = 6
+NUM_DECODER_LAYERS = 6
+RETURN_INTERMEDIATE = True
+DROPOUT = 0.1
+NLAYERS = 3
 
 # for Adam: beta1 = 0.9, beta2 = 0.98 , smallE = 10e-9
 
@@ -30,11 +40,19 @@ def start(path='../dataset'):
     #still testing on cpu !
     device = torch.device('cpu')
     
-    dataset = KittiDataset(root=path)
+    dataset = KittiDataset(root=path, num_kp=NUM_KP)
     loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
     
     torch.cuda.empty_cache()
-    model = COTR()
+    model = COTR(
+        emd_dim=EMB_DIM,
+        nhead=NHEAD,
+        num_encoder_layers=NUM_ENCODER_LAYERS,
+        num_decoder_layers=NUM_DECODER_LAYERS,
+        return_intermediate=RETURN_INTERMEDIATE,
+        dropout=0.1,
+        nlayers=NLAYERS
+    )
     model = model.to(device)
 
     total_params = sum(

@@ -12,11 +12,12 @@ import matplotlib.pyplot as plt
 from utils import two_images_side_by_side
 
 class KittiDataset(Dataset):
-    def __init__(self, root, split='train', transforms = None, img_size=256):
+    def __init__(self, root, split='train', transforms = None, img_size=256, num_kp=100):
         super().__init__()
         self.img_size = img_size
         self.root = root
         self.split = split
+        self.num_kp = num_kp
         self.transforms = self.kitti_transform_train if split == 'train' else self.kitti_transform_test
         self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split='train', transforms=self.transforms)
         
@@ -99,7 +100,7 @@ class KittiDataset(Dataset):
         targets = targets.reshape(1, t_shape[0], t_shape[1])
     
         corrs = np.concatenate((kp,targets), axis=0)
-        mask = np.random.choice(corrs.shape[1], 100)
+        mask = np.random.choice(corrs.shape[1], self.num_kp)
         corrs = corrs[:, mask, :]
 
         # BLUR

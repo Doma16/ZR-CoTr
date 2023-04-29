@@ -8,21 +8,61 @@ from models.mlp import MLP
 
 from models.misc import nested_tensor_from_tensor_list
 
+# hyper_params:
+# BackBone
+# -no params (using ResNet18)
+# Transformer
+EMB_DIM = 256
+NHEAD = 8
+NUM_ENCODER_LAYERS = 6
+NUM_DECODER_LAYERS = 6
+RETURN_INTERMEDIATE = True
+DROPOUT = 0.1
+# MLP
+NLAYERS = 3
+# other
+# -
+
 class COTR(nn.Module):
     
-    def __init__(self):
+    def __init__(self,
+                 emd_dim,
+                 nhead,
+                 num_encoder_layers,
+                 num_decoder_layers,
+                 return_intermediate,
+                 dropout,
+                 nlayers
+                 ):
         super().__init__()
         #transformer
         self.backbone = BackBone()
-        self.transformer = Transformer(return_intermediate=True, dropout=0.1)
+        self.transformer = Transformer(
+            emb_dim=emd_dim,
+            nhead=nhead,
+            num_encoder_layers=num_encoder_layers,
+            num_decoder_layers=num_decoder_layers,
+            return_intermediate=return_intermediate,
+            dropout=dropout
+        )
+
         self.pos_emb = PositionalEmbedding(128) #from pos_embed
 
         hidden_dim = self.transformer.emb_dim
         
-        self.mlp = MLP(hidden_dim, hidden_dim, 2, 3)
+        self.mlp = MLP(
+            input_dim=hidden_dim,
+            hidden_dim=hidden_dim,
+            output_dim=2,
+            nlayers=nlayers
+        )
 
         self.proj_q = NerfPositionalEncoding(hidden_dim // 4)
-        self.proj_x = nn.Conv2d(hidden_dim, hidden_dim, kernel_size=1)
+        self.proj_x = nn.Conv2d(
+            hidden_dim,
+            hidden_dim,
+            kernel_size=1
+        )
         
     def forward(self, x, queries):    
         #to NestedTensor

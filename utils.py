@@ -71,3 +71,13 @@ def plot_predictions(img, query, pred, target, b_id, file):
     img = img.get()
     plt.imshow(img)
     plt.savefig(f'./{file}/{b_id}.png')
+
+
+def PCK_N(img, query, pred, target, save_name=None, file=None): # 1px 3px 5px (percentage of correct keypoints)
+    pass
+
+def AEPE(img, query, pred, target, save_name=None, file=None): # average end point error
+    pass
+
+def F1(img, query, pred, target, save_name=None, file=None): # TODO
+    pass
