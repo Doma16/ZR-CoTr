@@ -18,7 +18,17 @@ class KittiDataset(Dataset):
         self.root = root
         self.split = split
         self.transforms = self.kitti_transform_train if split == 'train' else self.kitti_transform_test
-        self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split=split, transforms=self.transforms)
+        self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split='train', transforms=self.transforms)
+        
+        # here we split 160 + 20 + 20, 160 train | 20 val | 20 test
+        assert split in ('train', 'val', 'test')
+        if split == 'train':
+            self.ds._images = self.ds._images[:160*2]
+        elif split == 'val':
+            self.ds._images = self.ds._images[160*2:180*2]
+        elif split == 'test':
+            self.ds._images = self.ds._images[180*2:]
+        
         self.ds._has_built_in_disparity_mask = False
 
     def __len__(self):
@@ -68,11 +78,18 @@ class KittiDataset(Dataset):
         assert targets.dtype is np.dtype('float32')
         
         # CORRS TO 0-1 interval
-        kp[:, 0] /= ow
+        kp[:, 0] /= 2*ow
         kp[:, 1] /= oh
 
-        targets[:, 0] /= ow
+        #target masks
+        tgt_mask = targets[:, 0] > 0
+
+        targets[:, 0] /= 2*ow
+        targets[:, 0] = targets[:, 0] + 0.5
         targets[:, 1] /= oh
+        
+        kp = kp[tgt_mask]
+        targets = targets[tgt_mask]
 
         # COMBINE CORRS
         kp_shape = kp.shape
@@ -84,7 +101,7 @@ class KittiDataset(Dataset):
         corrs = np.concatenate((kp,targets), axis=0)
         mask = np.random.choice(corrs.shape[1], 100)
         corrs = corrs[:, mask, :]
-        
+
         # BLUR
         ksize = (5,5)
         img1 = cv2.blur(img1, ksize)
@@ -133,7 +150,7 @@ class KittiDataset(Dataset):
         
         kp = [[int(p.pt[0]), int(p.pt[1])] for p in kp]
         kp = np.array(kp).astype(np.float32)
-        kp[:, 0] /= ow
+        kp[:, 0] /= 2*ow
         kp[:, 1] /= oh
         
         ksize = (5,5)
