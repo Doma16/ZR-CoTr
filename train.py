@@ -50,7 +50,7 @@ def start(path='../dataset'):
         num_encoder_layers=NUM_ENCODER_LAYERS,
         num_decoder_layers=NUM_DECODER_LAYERS,
         return_intermediate=RETURN_INTERMEDIATE,
-        dropout=0.1,
+        dropout=DROPOUT,
         nlayers=NLAYERS
     )
     model = model.to(device)
@@ -86,7 +86,6 @@ def start(path='../dataset'):
             query = corrs[:, 0, :, :]
             target = corrs[:, 1, :, :]
             
-        
             opt.zero_grad()
             
             pred = model(img, query)['pred_corrs']
@@ -99,7 +98,7 @@ def start(path='../dataset'):
             cycle = model(img_reverse, query_reverse)['pred_corrs']
             cycle[..., 0] = cycle[..., 0] - 0.5 
         
-            mask = torch.norm(cycle - query, dim=-1) < 100 / IMG_SIZE
+            mask = torch.norm(cycle - query, dim=-1) < 10 / IMG_SIZE
             cycle_loss = 0
             if mask.sum() > 0:
                 cycle_loss = F.mse_loss(cycle[mask], query[mask])
@@ -118,6 +117,7 @@ def start(path='../dataset'):
                 print(f'Loss in b_id{batchid}: { loss.detach().numpy() }')
                 pck = PCK_N(img, query, pred, target, threshold=1)
                 aepe = AEPE(img, query, pred, target)
+                print(f'PCK: {pck}, AEPE: {aepe}')
                 plot_predictions(img, query, pred, target, batchid, 'plot_test')
 
 

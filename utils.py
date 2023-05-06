@@ -98,8 +98,8 @@ def PCK_N(img, query, pred, target, threshold=1): # example for: 1px 3px 5px (pe
 def AEPE(img, query, pred, target): # average end point error
     b,c,h,w = img.shape
 
-    a = np.copy( pred.detach().cpu() )
-    b = np.copy( target.detach().cpu() )
+    a = np.copy( pred.detach().cpu().numpy() )
+    b = np.copy( target.detach().cpu().numpy() )
     
     a[:,:,0] = np.round(a[:,:,0] * w)
     a[:,:,1] = np.round(a[:,:,1] * h)
@@ -108,7 +108,6 @@ def AEPE(img, query, pred, target): # average end point error
 
     distance_xy = np.abs(a - b)
     distance = np.sqrt( np.square(distance_xy[:,:,0]) + np.square(distance_xy[:,:,1]) )
-    breakpoint()
 
     avg = np.mean(distance)
     return avg
