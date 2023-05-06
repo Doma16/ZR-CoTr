@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from dataset import KittiDataset
-from utils import get_query, plot_predictions
+from utils import get_query, plot_predictions, PCK_N, AEPE
 
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
@@ -112,10 +112,12 @@ def start(path='../dataset'):
             else:
                 loss.backward()
             opt.step()    
-            
+
             if batchid % 10 == 0:
                 #torch.save(model.state_dict(), f'{path}/saved/bid{batchid}.pth')
                 print(f'Loss in b_id{batchid}: { loss.detach().numpy() }')
+                pck = PCK_N(img, query, pred, target, threshold=1)
+                aepe = AEPE(img, query, pred, target)
                 plot_predictions(img, query, pred, target, batchid, 'plot_test')
 
 

@@ -73,11 +73,52 @@ def plot_predictions(img, query, pred, target, b_id, file):
     plt.savefig(f'./{file}/{b_id}.png')
 
 
-def PCK_N(img, query, pred, target, save_name=None, file=None): # 1px 3px 5px (percentage of correct keypoints)
+def PCK_N(img, query, pred, target, threshold=1): # example for: 1px 3px 5px (percentage of correct keypoints)
+    b,c,h,w = img.shape
+
+    a = np.copy( pred.detach().cpu() )
+    b = np.copy( target.detach().cpu() )
+
+    a[:,:,0] = np.round(a[:,:,0] * w)
+    a[:,:,1] = np.round(a[:,:,1] * h)
+    b[:,:,0] = np.round(b[:,:,0] * w)
+    b[:,:,1] = np.round(b[:,:,1] * h)
+
+    distance_xy = np.abs(a - b)
+    assert len(distance_xy.shape) == 3
+    
+    distance = np.sqrt( np.square(distance_xy[:,:,0]) + np.square(distance_xy[:,:,1]) )
+   
+    b, num_kp, _ = pred.shape
+    in_ = np.count_nonzero(distance <= threshold)
+
+    pck = in_ / (b*num_kp)
+    return pck
+
+def AEPE(img, query, pred, target): # average end point error
+    b,c,h,w = img.shape
+
+    a = np.copy( pred.detach().cpu() )
+    b = np.copy( target.detach().cpu() )
+    
+    a[:,:,0] = np.round(a[:,:,0] * w)
+    a[:,:,1] = np.round(a[:,:,1] * h)
+    b[:,:,0] = np.round(b[:,:,0] * w)
+    b[:,:,1] = np.round(b[:,:,1] * h)
+
+    distance_xy = np.abs(a - b)
+    distance = np.sqrt( np.square(distance_xy[:,:,0]) + np.square(distance_xy[:,:,1]) )
+    breakpoint()
+
+    avg = np.mean(distance)
+    return avg
+
+def F1(img, query, pred, target): # TODO
     pass
 
-def AEPE(img, query, pred, target, save_name=None, file=None): # average end point error
+
+def test():
     pass
 
-def F1(img, query, pred, target, save_name=None, file=None): # TODO
-    pass
+if __name__ == '__main__':
+    test()
