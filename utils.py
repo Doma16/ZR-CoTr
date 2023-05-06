@@ -42,16 +42,17 @@ def plot_predictions(img, query, pred, target, b_id, file):
     target = target.cpu().detach().numpy()
 
     b, c, h, w = img.shape
-    ow = w // 2
     img = img[0].transpose(1,2,0)
     query = query[0]
     pred = pred[0]
     target = target[0]
 
-    if query.shape[0] > 10:
-        query = query[:10,:]
-        pred = pred[:10,:]
-        target = target[:10, :]
+    num_show = 20
+
+    if query.shape[0] > num_show:
+        query = query[:num_show,:]
+        pred = pred[:num_show,:]
+        target = target[:num_show, :]
 
     img = cv2.UMat(img)
 
@@ -59,11 +60,11 @@ def plot_predictions(img, query, pred, target, b_id, file):
     pred_mask = pred > 0
     for i, p in enumerate(pred):
         if pred_mask[i].all() == True:
-            x1 = int(query[i][0] * ow)
+            x1 = int(query[i][0] * w)
             y1 = int(query[i][1] * h)
-            x2 = int(pred[i][0] * ow + ow) 
+            x2 = int(pred[i][0] * w) 
             y2 = int(pred[i][1] * h)
-            xt = int(target[i][0] * ow + ow)
+            xt = int(target[i][0] * w)
             yt = int(target[i][1] * h)
             cv2.line(img, (x1,y1), (x2,y2), (0,100,0), 2)
             cv2.line(img, (x1,y1), (xt, yt), (100,0,0), 2)
@@ -74,10 +75,10 @@ def plot_predictions(img, query, pred, target, b_id, file):
 
 
 def PCK_N(img, query, pred, target, threshold=1): # example for: 1px 3px 5px (percentage of correct keypoints)
-    b,c,h,w = img.shape
+    b_size,c,h,w = img.shape
 
-    a = np.copy( pred.detach().cpu() )
-    b = np.copy( target.detach().cpu() )
+    a = np.copy( pred.cpu().detach().numpy() )
+    b = np.copy( target.cpu().detach().numpy() )
 
     a[:,:,0] = np.round(a[:,:,0] * w)
     a[:,:,1] = np.round(a[:,:,1] * h)
@@ -89,17 +90,17 @@ def PCK_N(img, query, pred, target, threshold=1): # example for: 1px 3px 5px (pe
     
     distance = np.sqrt( np.square(distance_xy[:,:,0]) + np.square(distance_xy[:,:,1]) )
    
-    b, num_kp, _ = pred.shape
+    b_size, num_kp, _ = pred.shape
     in_ = np.count_nonzero(distance <= threshold)
 
-    pck = in_ / (b*num_kp)
+    pck = in_ / (b_size*num_kp)
     return pck
 
 def AEPE(img, query, pred, target): # average end point error
-    b,c,h,w = img.shape
+    b_size,c,h,w = img.shape
 
-    a = np.copy( pred.detach().cpu().numpy() )
-    b = np.copy( target.detach().cpu().numpy() )
+    a = np.copy( pred.cpu().detach().numpy() )
+    b = np.copy( target.cpu().detach().numpy() )
     
     a[:,:,0] = np.round(a[:,:,0] * w)
     a[:,:,1] = np.round(a[:,:,1] * h)
