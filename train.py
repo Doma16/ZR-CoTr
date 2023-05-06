@@ -21,7 +21,7 @@ LR = 1e-4
 LR_BB = 0
 IMG_SIZE = 256
 EPOCHS = 1000
-NUM_KP = 100
+NUM_KP = 21
 
 #model params
 EMB_DIM = 256
@@ -119,6 +119,7 @@ def start(path='../dataset'):
                 aepe = AEPE(img, query, pred, target)
                 print(f'PCK: {pck}, AEPE: {aepe}')
                 plot_predictions(img, query, pred, target, batchid, 'plot_test')
+                breakpoint()
 
 
         #plt.imshow(preview)

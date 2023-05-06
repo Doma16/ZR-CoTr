@@ -54,23 +54,64 @@ def plot_predictions(img, query, pred, target, b_id, file):
         pred = pred[:num_show,:]
         target = target[:num_show, :]
 
-    img = cv2.UMat(img)
+    query[:, 0] = np.round(query[:, 0] * w)
+    pred[:, 0] = np.round(pred[:, 0] * w)
+    target[:, 0] = np.round(target[:, 0] * w)
 
-    # We will only plot pred > 0
-    pred_mask = pred > 0
-    for i, p in enumerate(pred):
-        if pred_mask[i].all() == True:
-            x1 = int(query[i][0] * w)
-            y1 = int(query[i][1] * h)
-            x2 = int(pred[i][0] * w) 
-            y2 = int(pred[i][1] * h)
-            xt = int(target[i][0] * w)
-            yt = int(target[i][1] * h)
-            cv2.line(img, (x1,y1), (x2,y2), (0,100,0), 2)
-            cv2.line(img, (x1,y1), (xt, yt), (100,0,0), 2)
+    query[:, 1] = np.round(query[:, 1] * h)
+    pred[:, 1] = np.round(pred[:, 1] * h)
+    target[:, 1] = np.round(target[:, 1] * h)
 
-    img = img.get()
+    cols = [
+        [0.0, 0.67, 0.0],
+        [0.9, 0.1, 0.0],
+    ]
+
+    lw = 0.5
+    alpha = 1
+
+    x_q = query[:, 0]
+    y_q = query[:, 1]
+
+    x_t = target[:, 0]
+    y_t = target[:, 1]
+
+    x_p = pred[:, 0]
+    y_p = pred[:, 1]
+
+    breakpoint()
+
     plt.imshow(img)
+
+    X_true = np.stack([x_q, x_t])
+    Y_true = np.stack([y_q, y_t])
+
+    plt.plot(
+        X_true, Y_true,
+        alpha=alpha,
+        linestyle='-',
+        linewidth=lw,
+        aa=False,
+        color=cols[1],
+    )
+
+    X_pred = np.stack([x_q, x_p])
+    Y_pred = np.stack([y_q, y_p])
+
+    plt.plot(
+        X_pred, Y_pred,
+        alpha=alpha,
+        linestyle='-',
+        linewidth=lw,
+        aa=False,
+        color=cols[0]
+    )
+
+    X = np.stack([x_q, x_p, x_t])
+    Y = np.stack([y_q, y_p, y_t])
+    plt.scatter(X, Y)
+
+    plt.show()
     plt.savefig(f'./{file}/{b_id}.png')
 
 
