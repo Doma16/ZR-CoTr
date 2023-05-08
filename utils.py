@@ -232,13 +232,9 @@ def transform_images(img1, img2, size):
     img1 = np.array(img1)
     img2 = np.array(img2)
 
-    ksize = (5,5)
-    img1 = cv2.blur(img1, ksize)
-    img2 = cv2.blur(img2, ksize)
-
     new_size = (size, size)
-    img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_CUBIC)
-    img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_CUBIC)
+    img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_LINEAR)
+    img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_LINEAR)
 
     imgR = two_images_side_by_side(img1, img2)
 

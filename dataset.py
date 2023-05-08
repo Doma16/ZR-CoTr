@@ -22,12 +22,10 @@ class KittiDataset(Dataset):
         self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split='train', transforms=self.transforms)
         
         # here we split 160 + 20 + 20, 160 train | 20 val | 20 test
-        assert split in ('train', 'val', 'test')
+        assert split in ('train', 'val')
         if split == 'train':
-            self.ds._images = self.ds._images[:160*2]
+            self.ds._images = self.ds._images[:180*2]
         elif split == 'val':
-            self.ds._images = self.ds._images[160*2:180*2]
-        elif split == 'test':
             self.ds._images = self.ds._images[180*2:]
         
         self.ds._has_built_in_disparity_mask = False
@@ -103,15 +101,30 @@ class KittiDataset(Dataset):
         mask = np.random.choice(corrs.shape[1], self.num_kp)
         corrs = corrs[:, mask, :]
 
-        # BLUR
-        ksize = (5,5)
-        img1 = cv2.blur(img1, ksize)
-        img2 = cv2.blur(img2, ksize)
+        # try some zoom in?
+        x_start = 0.5
+        x_end = 1.0
+        x_min = np.min(corrs[1,:,0])
+        x_max = np.max(corrs[1,:,0])
+
+        y_min = np.min(corrs[1,:,1])
+        y_max = np.max(corrs[1,:,1])
+
+        h,w,c = img2.shape
+        new_x_start = round((x_min-0.5)*2*w)
+        new_x_end = round((x_max-0.5)*2*w)
+        new_y_start = round((y_min)*h)
+        new_y_end = round((y_max)*h)
+        img2 = img2[new_y_start:new_y_end,new_x_start:new_x_end,:]
+
+        # corrs to ?
+        corrs[1,:,0] = (corrs[1,:,0] - x_min) / (x_max-x_min) / 2 + 0.5
+        corrs[1,:,1] = (corrs[1,:,1] - y_min) / (y_max-y_min)
 
         # RESIZING
         new_size = (self.img_size, self.img_size)
-        img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_CUBIC)
-        img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_CUBIC)
+        img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_LINEAR)
+        img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_LINEAR)
     
         imgR = two_images_side_by_side(img1, img2)
 

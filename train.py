@@ -21,7 +21,7 @@ LR = 1e-4
 LR_BB = 0
 IMG_SIZE = 256
 EPOCHS = 1000
-NUM_KP = 21
+NUM_KP = 100
 
 #model params
 EMB_DIM = 256
@@ -82,7 +82,7 @@ def start(path='../dataset'):
             
             img = img.to(device)
             corrs = corrs.to(device)
-            breakpoint()
+
             query = corrs[:, 0, :, :]
             target = corrs[:, 1, :, :]
             
