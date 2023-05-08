@@ -9,7 +9,7 @@ from PIL import Image
 
 import cv2
 import matplotlib.pyplot as plt
-from utils import two_images_side_by_side
+from utils import two_images_side_by_side, two_images_vertical
 
 class KittiDataset(Dataset):
     def __init__(self, root, split='train', transforms = None, img_size=256, num_kp=100):
@@ -18,7 +18,7 @@ class KittiDataset(Dataset):
         self.root = root
         self.split = split
         self.num_kp = num_kp
-        self.transforms = self.kitti_transform_train if split == 'train' else self.kitti_transform_test
+        self.transforms = self.kitti_transform_train # if split == 'train' else self.kitti_transform_test
         self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split='train', transforms=self.transforms)
         
         # here we split 160 + 20 + 20, 160 train | 20 val | 20 test
@@ -120,8 +120,8 @@ class KittiDataset(Dataset):
         imgR = TF.to_tensor(imgR)
         #imgR = torch.tensor(imgR)
         #imgR = imgR.reshape(3,256,512)
-        
-        imgs = (imgR, img2)
+        imgReal = two_images_vertical(np.array(imgs[0]), np.array(imgs[1]))
+        imgs = (imgR, imgReal)
 
         #dmap = (dmap1, dmap2)
     

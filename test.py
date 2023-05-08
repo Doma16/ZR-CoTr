@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from dataset import KittiDataset
-from utils import get_query, plot_predictions
+from utils import plot_predictions, plot_real
 
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
@@ -19,36 +19,48 @@ import torchvision.transforms.functional as TF
 
 BATCH_SIZE = 1
 IMG_SIZE = 256
+NUM_KP = 21
+
+EMB_DIM = 256
+NHEAD = 8
+NUM_ENCODER_LAYERS = 6
+NUM_DECODER_LAYERS = 6
+RETURN_INTERMEDIATE = True
+DROPOUT = 0.1
+NLAYERS = 3
 
 
 device = torch.device('cpu')
 
-dataset = KittiDataset(root = '../dataset', split='test')
+dataset = KittiDataset(root = '../dataset', split='val', num_kp=NUM_KP)
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-model = COTR()
+model = COTR(
+    emd_dim=EMB_DIM,
+    nhead=NHEAD,
+    num_encoder_layers=NUM_ENCODER_LAYERS,
+    num_decoder_layers=NUM_DECODER_LAYERS,
+    return_intermediate=RETURN_INTERMEDIATE,
+    dropout=DROPOUT,
+    nlayers=NLAYERS
+)
 model = model.to(device)
 
-model.load_state_dict(torch.load('./saved/plus200epoch.pth'))
+model.load_state_dict(torch.load('./saved/t1e400_bid39.pth'))
 model.eval()
 
-for batchid, (img, _, query) in enumerate(loader):
+for batchid, (img, w, corrs) in enumerate(loader):
     
     img = img.to(device)
-    #corrs = corrs.to(device)
+    corrs = corrs.to(device)
+
+    query = corrs[:,0,:,:]
+    target = corrs[:,1,:,:]
 
     pred = model(img, query)['pred_corrs']
 
-    plot_predictions(img, query, pred, query, 'example_1', 'plot_test')
-    #sketch
+    plot_real(w,query,pred)
     
-    tstq = query.detach().numpy()
-    tstp = pred.detach().numpy()
-    
-    tstq = tstq * IMG_SIZE
-    tstp = tstp * IMG_SIZE
-    
-    
-    breakpoint()
-    
+    plot_predictions(img, query, pred, target, 'example_1', 'plot_test')
+    #sketch 
     print(batchid)

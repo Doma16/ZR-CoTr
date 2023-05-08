@@ -34,12 +34,85 @@ def two_images_side_by_side(img1, img2):
 
     return canvas
 
+def two_images_vertical(img1, img2):
+    assert img1.shape == img2.shape
+    assert img1.dtype == img2.dtype
+    h, w, c = img1.shape
+    
+    canvas = np.zeros((h*2, w, c), dtype=img1.dtype)
+    canvas[0*h:1*h, :, :] = img1
+    canvas[1*h:2*h, :, :] = img2
+
+    return canvas
+
+def plot_real(img, query, pred):
+
+    img = img.cpu().detach().numpy()
+    query = query.cpu().detach().numpy()
+    pred = pred.cpu().detach().numpy()
+
+    img = np.copy(img)
+    query = np.copy(query)
+    pred = np.copy(pred)
+
+    b,h,w,c = img.shape
+    img = img[0]
+    query = query[0]
+    pred = pred[0]
+
+    num_show = 10
+
+    if query.shape[0] > num_show:
+        query = query[:num_show, :]
+        pred = pred[:num_show, :]
+
+    query[:, 0] = np.round(query[:, 0] * 2*w)
+    pred[:, 0] = np.round((pred[:, 0]-0.5) * 2*w)
+    
+    query[:, 1] = np.round(query[:, 1] * h//2)
+    pred[:, 1] = np.round(pred[:, 1] * h//2 + h//2)
+
+    col = [0.0,0.6,0.1]
+
+    lw = 1
+    alpha = 1
+
+    x_q = query[:, 0]
+    y_q = query[:, 1]
+
+    x_p = pred[:, 0]
+    y_p = pred[:, 1]
+
+    plt.imshow(img)
+
+    X_true = np.stack([x_q, x_p])
+    Y_true = np.stack([y_q, y_p])
+
+    plt.plot(
+        X_true, Y_true,
+        alpha=alpha,
+        linestyle='-',
+        linewidth=lw,
+        aa=False,
+        color=col,
+    )
+
+    plt.scatter(X_true, Y_true)
+    plt.show()
+
+
 
 def plot_predictions(img, query, pred, target, b_id, file):
+    
     img = img.cpu().detach().numpy()
     query = query.cpu().detach().numpy()
     pred = pred.cpu().detach().numpy()
     target = target.cpu().detach().numpy()
+
+    img = np.copy(img)
+    query = np.copy(query)
+    pred = np.copy(pred)
+    target = np.copy(target)
 
     b, c, h, w = img.shape
     img = img[0].transpose(1,2,0)
@@ -47,7 +120,7 @@ def plot_predictions(img, query, pred, target, b_id, file):
     pred = pred[0]
     target = target[0]
 
-    num_show = 20
+    num_show = 10
 
     if query.shape[0] > num_show:
         query = query[:num_show,:]
@@ -79,8 +152,6 @@ def plot_predictions(img, query, pred, target, b_id, file):
     x_p = pred[:, 0]
     y_p = pred[:, 1]
 
-    breakpoint()
-
     plt.imshow(img)
 
     X_true = np.stack([x_q, x_t])
@@ -111,8 +182,8 @@ def plot_predictions(img, query, pred, target, b_id, file):
     Y = np.stack([y_q, y_p, y_t])
     plt.scatter(X, Y)
 
-    plt.show()
     plt.savefig(f'./{file}/{b_id}.png')
+    plt.clf()
 
 
 def PCK_N(img, query, pred, target, threshold=1): # example for: 1px 3px 5px (percentage of correct keypoints)
@@ -157,6 +228,29 @@ def AEPE(img, query, pred, target): # average end point error
 def F1(img, query, pred, target): # TODO
     pass
 
+def transform_images(img1, img2, size):
+    img1 = np.array(img1)
+    img2 = np.array(img2)
+
+    ksize = (5,5)
+    img1 = cv2.blur(img1, ksize)
+    img2 = cv2.blur(img2, ksize)
+
+    new_size = (size, size)
+    img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_CUBIC)
+    img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_CUBIC)
+
+    imgR = two_images_side_by_side(img1, img2)
+
+    imgR = TF.to_tensor(imgR)
+
+    return imgR
+
+def transform_query(query, ow, oh):
+    query[:,0] = query[:,0] / (2*ow)
+    query[:,1] = query[:,1] / (oh)
+    query = query.reshape(1, query.shape[0], query.shape[1])
+    return query
 
 def test():
     pass
