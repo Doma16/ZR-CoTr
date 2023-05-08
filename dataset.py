@@ -56,7 +56,7 @@ class KittiDataset(Dataset):
         maxX, maxY = dmap1.shape[1:]
         fast = cv2.FastFeatureDetector_create()
         
-        dmapt = dmap1.squeeze(0) > 0
+        dmapt = dmap1.squeeze(0) > 5
         dmapt = dmapt.astype(np.uint8)
         
         imgt = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
