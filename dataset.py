@@ -4,6 +4,7 @@ import torchvision.transforms as tform
 import torchvision.transforms.functional as TF
 import torch
 
+import random
 import numpy as np
 from PIL import Image
 
@@ -21,17 +22,21 @@ class KittiDataset(Dataset):
         self.transforms = self.kitti_transform_train # if split == 'train' else self.kitti_transform_test
         self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split='train', transforms=self.transforms)
         
-        # here we split 160 + 20 + 20, 160 train | 20 val | 20 test
+        # here we split 160 + 20 + 20, 160 train | 40 val
         assert split in ('train', 'val')
+        self.ds._images = self.ds._images[::2]
         if split == 'train':
-            self.ds._images = self.ds._images[:180*2]
+            self.ds._images = self.ds._images[:160]
+            self.ds._disparities = self.ds._disparities[:160]
         elif split == 'val':
-            self.ds._images = self.ds._images[180*2:]
+            self.ds._images = self.ds._images[160:]
+            self.ds._disparities = self.ds._disparities[160:]
         
         self.ds._has_built_in_disparity_mask = False
 
+
     def __len__(self):
-        return len(self.ds) // 2
+        return len(self.ds)
     
     def __getitem__(self, index):
         return self.ds.__getitem__(index)
@@ -47,6 +52,25 @@ class KittiDataset(Dataset):
         img1 = np.array(img1)
         img2 = np.array(img2)
         
+        ''' prikaz rektifikacije
+        canvas = two_images_side_by_side(img1, img2)
+        plt.imshow(canvas)
+
+        space = np.linspace(0,canvas.shape[0], 9)[1:-1]
+
+        for line in space:
+            plt.axhline(y=line, color='c', linestyle='-', linewidth=1)
+
+        plt.axis('off')
+        plt.show()
+        '''
+        
+        ''' prikaz mape dispariteta
+        plt.imshow(dmap1[0], cmap='gray')
+        plt.axis('off')
+        plt.show()
+        '''
+
         assert img1.shape == img2.shape
         oh, ow, oc = img1.shape
         
@@ -56,7 +80,7 @@ class KittiDataset(Dataset):
         maxX, maxY = dmap1.shape[1:]
         fast = cv2.FastFeatureDetector_create()
         
-        dmapt = dmap1.squeeze(0) > 5
+        dmapt = dmap1.squeeze(0) > 0
         dmapt = dmapt.astype(np.uint8)
         
         imgt = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
@@ -67,9 +91,29 @@ class KittiDataset(Dataset):
         #pix = cv2.drawKeypoints(img1, kp, None, color=(0,255,0))
         kp = [[int(p.pt[0]), int(p.pt[1])] for p in kp if p.pt[1] < maxX and p.pt[0] < maxY]
         # How to turn kp to queries (what shape ? np.array or dict or ?)
-   
-        targets = [ [int(p[0]-dmap1[0,p[1],p[0]]), p[1]] for p in kp]
+        targets = [ [round(p[0]-dmap1[0,p[1],p[0]]), p[1]] for p in kp]
         
+        #used for debugging
+        '''
+        breakpoint()
+        kp = np.array(kp)
+        targets = np.array(targets)
+
+        mask = np.random.choice(kp.shape[0], 100)
+        kp = kp[mask, :]
+        targets = targets[mask, :]
+
+        fig, axes = plt.subplots(1,2)
+        axes[0].imshow(img1)
+        axes[0].scatter(kp[:,0], kp[:,1], c='red', marker='x')
+
+        axes[1].imshow(img2)
+        axes[1].scatter(targets[:,0], targets[:, 1], c='blue', marker='x')
+
+        plt.show()
+        breakpoint()
+        '''
+
         kp = np.array(kp).astype(np.float32)
         targets = np.array(targets).astype(np.float32)
 
@@ -102,24 +146,25 @@ class KittiDataset(Dataset):
         corrs = corrs[:, mask, :]
 
         # try some zoom in?
-        x_start = 0.5
-        x_end = 1.0
-        x_min = np.min(corrs[1,:,0])
-        x_max = np.max(corrs[1,:,0])
+        if False:
+            x_start = 0.5
+            x_end = 1.0
+            x_min = np.min(corrs[1,:,0])
+            x_max = np.max(corrs[1,:,0])
 
-        y_min = np.min(corrs[1,:,1])
-        y_max = np.max(corrs[1,:,1])
+            y_min = np.min(corrs[1,:,1])
+            y_max = np.max(corrs[1,:,1])
 
-        h,w,c = img2.shape
-        new_x_start = round((x_min-0.5)*2*w)
-        new_x_end = round((x_max-0.5)*2*w)
-        new_y_start = round((y_min)*h)
-        new_y_end = round((y_max)*h)
-        img2 = img2[new_y_start:new_y_end,new_x_start:new_x_end,:]
+            h,w,c = img2.shape
+            new_x_start = round((x_min-0.5)*2*w)
+            new_x_end = round((x_max-0.5)*2*w)
+            new_y_start = round((y_min)*h)
+            new_y_end = round((y_max)*h)
+            img2 = img2[new_y_start:new_y_end,new_x_start:new_x_end,:]
 
-        # corrs to ?
-        corrs[1,:,0] = (corrs[1,:,0] - x_min) / (x_max-x_min) / 2 + 0.5
-        corrs[1,:,1] = (corrs[1,:,1] - y_min) / (y_max-y_min)
+            corrs[1,:,0] = (corrs[1,:,0] - x_min) / (x_max-x_min) / 2 + 0.5
+            corrs[1,:,1] = (corrs[1,:,1] - y_min) / (y_max-y_min)
+
 
         # RESIZING
         new_size = (self.img_size, self.img_size)
@@ -134,11 +179,11 @@ class KittiDataset(Dataset):
         #imgR = torch.tensor(imgR)
         #imgR = imgR.reshape(3,256,512)
         imgReal = two_images_vertical(np.array(imgs[0]), np.array(imgs[1]))
-        imgs = (imgR, imgReal)
+        imgs = (imgR, 1)
 
         #dmap = (dmap1, dmap2)
     
-        dmap = (corrs,dmap2)
+        dmap = (corrs,1)
 
         return imgs, dmap, valid_masks
 

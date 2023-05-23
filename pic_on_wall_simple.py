@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from models.cotr import COTR
 from inference.simple_engine import simple_engine
 
-PATH_MODEL = './saved/test_model.pth'
+PATH_MODEL = './saved/ep400_bid39.pth'
 
 def main():
     
@@ -38,9 +38,13 @@ def main():
     rep_coord = np.array([[0,0], [rep_w,0], [0,rep_h], [rep_w, rep_h]]).astype(np.float32)
     
     engine = simple_engine(model)
-    corrs = engine.predict(img_a,img_b,query)
-
-    T = cv2.getPerspectiveTransform(rep_coord, corrs)
+    pred = engine.predict(img_a, img_b, query)
+    '''
+    engine = SparseEngine(model, 32, mode='stretching')
+    corrs = engine.cotr_corr_multiscale(img_a, img_b, np.linspace(0.5, 0.0625, 4), 1, queries_a=query, force=True)
+    '''
+    breakpoint()
+    T = cv2.getPerspectiveTransform(rep_coord, pred)#corrs[:, 2:].astype(np.float32))
     vmask = cv2.warpPerspective(rep_mask, T, (img_b.shape[1], img_b.shape[0])) > 0
     warped = cv2.warpPerspective(rep_img, T, (img_b.shape[1], img_b.shape[0]))
     out = warped * vmask[..., None] + img_b * (~vmask[..., None])

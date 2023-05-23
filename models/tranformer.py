@@ -29,6 +29,7 @@ class Transformer(nn.Module):
         pos = pos.flatten(2).permute(2,0,1)
         mask = mask.flatten(1) 
         
+        breakpoint()
         tgt = torch.zeros_like(query)
         memory = self.encoder(x, src_mask=mask, pos=pos)
         

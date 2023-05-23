@@ -66,7 +66,8 @@ class COTR(nn.Module):
         
     def forward(self, x, queries):    
         #to NestedTensor
-        tensor = nested_tensor_from_tensor_list(x)
+        if isinstance(x, (list, torch.Tensor)):
+            tensor = nested_tensor_from_tensor_list(x)
         
         #backbone
         y = self.backbone(tensor)

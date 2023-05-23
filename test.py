@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from dataset import KittiDataset
-from utils import plot_predictions, plot_real
+from utils import plot_predictions, plot_real, AEPE, PCK_N
 
 from torchvision.utils import save_image
 from torchvision.utils import make_grid
@@ -46,7 +46,7 @@ model = COTR(
 )
 model = model.to(device)
 
-model.load_state_dict(torch.load('./saved/t1e400_bid39.pth'))
+model.load_state_dict(torch.load('./saved/ep400_bid39.pth'))
 model.eval()
 
 for batchid, (img, w, corrs) in enumerate(loader):
@@ -59,8 +59,31 @@ for batchid, (img, w, corrs) in enumerate(loader):
 
     pred = model(img, query)['pred_corrs']
 
-    plot_real(w,query,pred)
+    loss = F.mse_loss(pred,target)
+
+    img_reverse = torch.cat([img[..., IMG_SIZE:], img[..., :IMG_SIZE]], axis=-1)
+    query_reverse = pred.clone()
+    query_reverse[..., 0] = query_reverse[..., 0] - 0.5
+
+    cycle = model(img_reverse, query_reverse)['pred_corrs']
+
+    mask = torch.norm(cycle - query, dim=-1) < 10 / IMG_SIZE
+    cycle_loss = 0
+    if mask.sum() > 0:
+        cycle_loss = F.mse_loss(cycle[mask], query[mask])
+        loss += cycle_loss
     
-    plot_predictions(img, query, pred, target, 'example_1', 'plot_test')
+    loss_data = loss.data.item()
+    if np.isnan(loss_data):
+        print('loss is nan')
+
+    if batchid % 2 == 0:
+        print(f'Loss     in bid_{batchid}: {loss.cpu().detach().numpy():.8f}')
+        pck1 = PCK_N(img, query, pred, target, threshold=1)
+        pck3 = PCK_N(img, query, pred, target, threshold=3)
+        pck5 = PCK_N(img, query, pred, target, threshold=5)
+        aepe = AEPE(img, query, pred, target)
+        print(f' PCK-1px: {pck1}, PCK-3px: {pck3}, PCK-5px: {pck5}, AEPE: {aepe}')
+        plot_predictions(img, query, pred, target, 'example_1', 'plot_test')
+    #plot_real(w,query,pred)
     #sketch 
-    print(batchid)

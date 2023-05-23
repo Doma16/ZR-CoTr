@@ -45,6 +45,6 @@ def nested_tensor_from_tensor_list(tensor_list):
             pad_img[: img.shape[0], : img.shape[1], : img.shape[2]].copy_(img)
             m[: img.shape[1], : img.shape[2]] = False
     else:
-        raise ValueError('nested_tensor_from_tensor_list func not supported')
+        raise ValueError(f'nested_tensor_from_tensor_list func not supported {tensor_list[0].ndim}')
         
     return NestedTensor(tensor, mask)
