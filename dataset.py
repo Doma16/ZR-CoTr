@@ -19,9 +19,10 @@ class KittiDataset(Dataset):
         self.root = root
         self.split = split
         self.num_kp = num_kp
-        self.transforms = self.kitti_transform_train # if split == 'train' else self.kitti_transform_test
+        self.transforms = self.kitti_tile # if split == 'train' else self.kitti_transform_test
+        self.transforms = self.kitti_zoom
         self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split='train', transforms=self.transforms)
-        
+
         # here we split 160 + 20 + 20, 160 train | 40 val
         assert split in ('train', 'val')
         self.ds._images = self.ds._images[::2]
@@ -71,6 +72,7 @@ class KittiDataset(Dataset):
         plt.show()
         '''
 
+        indicies = np.argwhere(dmap1[0] > 0)
         assert img1.shape == img2.shape
         oh, ow, oc = img1.shape
         
@@ -79,7 +81,6 @@ class KittiDataset(Dataset):
         
         maxX, maxY = dmap1.shape[1:]
         fast = cv2.FastFeatureDetector_create()
-        
         dmapt = dmap1.squeeze(0) > 0
         dmapt = dmapt.astype(np.uint8)
         
@@ -186,6 +187,226 @@ class KittiDataset(Dataset):
         dmap = (corrs,1)
 
         return imgs, dmap, valid_masks
+    
+    def kitti_tile(self, imgs, dmap, valid_masks):        
+        img1 = imgs[0]
+        img2 = imgs[1]
+
+        img1 = np.array(img1)
+        img2 = np.array(img2)
+
+        oh, ow, oc = img1.shape
+        dmap1 = dmap[0]
+        dmap2 = dmap[1]
+
+        indicies = np.argwhere(dmap1[0] > 0)[2*ow:-2*ow]
+        temp = np.copy(dmap1[0])
+        temp = temp[temp > 0][2*ow:-2*ow]
+
+        assert img1.shape == img2.shape
+        assert img1.shape[:2] == dmap1.shape[1:]
+        maxX, maxY = dmap1.shape[1:]
+
+        miny = indicies[:,0].min()
+        maxy = indicies[:,0].max()
+
+        minx = indicies[:,1].min()
+        maxx = indicies[:,1].max()
+
+        img1 = img1[miny:maxy,:,:]
+        img2 = img2[miny:maxy,:,:]
+
+        indicies2 = np.copy(indicies).astype(np.float32)
+        indicies2[:,1] = indicies2[:,1] - temp 
+
+        tgt_mask1 = indicies2[:,1] > 0
+        tgt_mask2 = indicies2[:,1] < ow
+        tgt_mask = np.logical_and(tgt_mask1, tgt_mask2)
+
+        indicies2 = indicies2[tgt_mask]
+        indicies = indicies[tgt_mask]
+
+        diff = maxy - miny
+        indicies = indicies.astype(np.float32)
+        indicies[:,0] = indicies[:,0] - miny
+
+        indicies2 = indicies2.astype(np.float32)
+        indicies2[:,0] = indicies2[:,0] - miny
+
+        indicies = np.round(indicies)
+        indicies2 = np.round(indicies2)
+
+
+        indicies[:, [0,1]] = indicies[:, [1,0]]
+        indicies2[:, [0,1]] = indicies2[:, [1,0]]
+        
+        indicies[:, 0] /= 2*ow
+        indicies[:, 1] /= diff
+        indicies2[:, 0] /= 2*ow
+        indicies2[:, 0] = indicies2[:, 0] + 0.5
+        indicies2[:, 1] /= diff
+
+        indicies = indicies.reshape(1, indicies.shape[0], indicies.shape[1])
+        indicies2 = indicies2.reshape(1, indicies2.shape[0], indicies2.shape[1])
+     
+        corrs = np.concatenate((indicies, indicies2), axis=0)
+        mask = np.random.choice(corrs.shape[1], self.num_kp)
+        corrs = corrs[:, mask, :]
+
+        new_size = (self.img_size, self.img_size)
+        img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_LINEAR)
+        img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_LINEAR)
+        
+        '''
+        fig, axes = plt.subplots(1,2)
+        axes[0].imshow(img1)
+        axes[0].scatter(np.round(corrs[0,:,0]*2*256), np.round(corrs[0,:,1]*256), c='red', marker='x')
+
+        axes[1].imshow(img2)
+        axes[1].scatter(np.round((corrs[1,:,0]-0.5)*2*256), np.round(corrs[1,:,1]*256), c='blue', marker='x')
+
+        plt.show()
+        breakpoint()
+        '''
+        
+        imgR = two_images_side_by_side(img1, img2)
+
+        imgR = TF.to_tensor(imgR)
+        imgs = (imgR, 1)
+        dmap = (corrs, 1)
+
+        return imgs, dmap, valid_masks
+
+    def kitti_zoom(self, imgs, dmap, valid_masks):        
+        img1 = imgs[0]
+        img2 = imgs[1]
+
+        img1 = np.array(img1)
+        img2 = np.array(img2)
+
+        oh, ow, oc = img1.shape
+        dmap1 = dmap[0]
+        dmap2 = dmap[1]
+
+        max_d = dmap1.max()
+
+        indicies = np.argwhere(dmap1[0] > 0)[2*ow:-2*ow]
+        temp = np.copy(dmap1[0])
+        temp = temp[temp > 0][2*ow:-2*ow]
+
+        assert img1.shape == img2.shape
+        assert img1.shape[:2] == dmap1.shape[1:]
+        maxX, maxY = dmap1.shape[1:]
+
+        miny = indicies[:,0].min()
+        maxy = indicies[:,0].max()
+
+        minx = indicies[:,1].min()
+        maxx = indicies[:,1].max()
+
+        img1 = img1[miny:maxy,:,:]
+        img2 = img2[miny:maxy,:,:]
+
+        indicies2 = np.copy(indicies).astype(np.float32)
+        indicies2[:,1] = indicies2[:,1] - temp 
+
+        tgt_mask1 = indicies2[:,1] > 0
+        tgt_mask2 = indicies2[:,1] < ow
+        tgt_mask = np.logical_and(tgt_mask1, tgt_mask2)
+
+        indicies2 = indicies2[tgt_mask]
+        indicies = indicies[tgt_mask]
+
+        diff = maxy - miny
+        indicies = indicies.astype(np.float32)
+        indicies[:,0] = indicies[:,0] - miny
+
+        indicies2 = indicies2.astype(np.float32)
+        indicies2[:,0] = indicies2[:,0] - miny
+
+        indicies = np.round(indicies)
+        indicies2 = np.round(indicies2)
+
+
+        indicies[:, [0,1]] = indicies[:, [1,0]]
+        indicies2[:, [0,1]] = indicies2[:, [1,0]]
+
+        #zoom in x coords
+        start_x = random.randint(0,ow-self.img_size)
+        img1 = img1[:,start_x:start_x+self.img_size,:]
+
+        mask_shift = np.logical_and(indicies[:,0] > start_x, indicies[:,0] < start_x+self.img_size)
+
+        indicies = indicies[mask_shift]
+        indicies2 = indicies2[mask_shift]
+
+        indicies[:,0] = indicies[:, 0] - start_x
+        #
+        start_x2 = int(max(0, start_x-max_d))
+        end_x2 = int(min(start_x+self.img_size+max_d, img2.shape[1]))
+
+        img2 = img2[:, start_x2:end_x2, :]
+
+        mask_shift2 = np.logical_and(indicies2[:, 0] > start_x2, indicies2[:,0] < start_x+end_x2)
+
+        indicies = indicies[mask_shift2]
+        indicies2 = indicies2[mask_shift2]
+
+        indicies2[:,0] = indicies2[:,0] - start_x2
+
+        h1, w1, _ = img1.shape
+        h2, w2, _ = img2.shape
+        #zoom y
+        start_y = random.randint(0,20)
+        start_y = min(start_y, h1-start_y)
+
+        img1 = img1[start_y:h1-start_y,:,:]
+
+        mask_shift_y = np.logical_and(indicies[:, 1] > start_y, indicies[:,1] < h1-start_y)
+
+        indicies = indicies[mask_shift_y]
+        indicies2 = indicies2[mask_shift_y]
+
+        indicies[:, 1] = indicies[:, 1] - start_y
+        
+        h1, w1, _ = img1.shape
+        h2, w2, _ = img2.shape
+
+        indicies[:, 0] /= 2*w1
+        indicies[:, 1] /= h1
+        indicies2[:, 0] /= 2*w2
+        indicies2[:, 0] = indicies2[:, 0] + 0.5
+        indicies2[:, 1] /= h2
+
+        indicies = indicies.reshape(1, indicies.shape[0], indicies.shape[1])
+        indicies2 = indicies2.reshape(1, indicies2.shape[0], indicies2.shape[1])
+     
+        corrs = np.concatenate((indicies, indicies2), axis=0)
+        mask = np.random.choice(corrs.shape[1], self.num_kp)
+        corrs = corrs[:, mask, :]
+
+        new_size = (self.img_size, self.img_size)
+        img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_LINEAR)
+        img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_LINEAR)
+        
+        '''
+        fig, axes = plt.subplots(1,2)
+        axes[0].imshow(img1)
+        axes[0].scatter(np.round(corrs[0,:,0]*2*256), np.round(corrs[0,:,1]*256), c='red', marker='x')
+
+        axes[1].imshow(img2)
+        axes[1].scatter(np.round((corrs[1,:,0]-0.5)*2*256), np.round(corrs[1,:,1]*256), c='blue', marker='x')
+
+        plt.show()
+        breakpoint()
+        '''
+        
+        imgR = two_images_side_by_side(img1, img2)
+
+        imgR = TF.to_tensor(imgR)
+        imgs = (imgR, 1)
+        dmap = (corrs, 1)
+        return imgs, dmap, valid_masks
 
     def kitti_transform_test(self, imgs, dmap, valid_masks):
         
@@ -229,6 +450,101 @@ class KittiDataset(Dataset):
         dmap = (kp, 0)
         
         return imgs, dmap, valid_masks
+
+class MiddleBury(Dataset):
+    def __init__(self, root, split='train', transforms = None, img_size=256, num_kp=100, download=False):
+        super().__init__()
+        self.img_size = img_size
+        self.root = root
+        self.split = split
+        self.num_kp = num_kp
+        self.transforms = self.MiddleburyTransform
+        self.ds = torchvision.datasets.Middlebury2014Stereo(root=root, split=split, transforms=self.transforms, download=download)
+    
+    def __len__(self):
+        return len(self.ds)
+    
+    def __getitem__(self, index):
+        return self.ds.__getitem__(index)
+    
+    def MiddleburyTransform(self, imgs, dmap, valid_masks):
+        img1 = imgs[0]
+        img2 = imgs[1]
+
+        img1 = np.array(img1)
+        img2 = np.array(img2)
+        oh, ow, oc = img1.shape
+
+        dmap1 = dmap[0]
+        dmap2 = dmap[1]
+
+        vm1 = valid_masks[0]
+        vm2 = valid_masks[1]
+
+        new_mask = np.logical_and(dmap1, vm1)
+
+        indicies = np.argwhere(dmap1[0] > 0.)
+        temp = np.copy(dmap1[0])
+        temp = temp[temp > 0.]
+
+        indicies = indicies.astype(np.float32)
+        indicies2 = np.copy(indicies).astype(np.float32)
+        indicies2[:,1] = indicies2[:,1] - temp
+
+        tgt_mask1 = indicies2[:, 1] > 0
+        tgt_mask2 = indicies2[:, 1] < ow
+        tgt_mask = np.logical_and(tgt_mask1, tgt_mask2)
+
+        indicies2 = indicies2[tgt_mask]
+        indicies = indicies[tgt_mask]
+
+        indicies = np.round(indicies)
+        indicies2 = np.round(indicies2)
+
+        indicies[:, [0,1]] = indicies[:, [1,0]]
+        indicies2[:, [0,1]] = indicies2[:, [1,0]]
+
+        indicies[:, 0] /= 2*ow
+        indicies[:, 1] /= oh
+        indicies2[:, 0] /= 2*ow
+        indicies2[:, 0] = indicies2[:, 0] + 0.5
+        indicies2[:, 1] /= oh
+
+        indicies = indicies.reshape(1, indicies.shape[0], indicies.shape[1])
+        indicies2 = indicies2.reshape(1, indicies2.shape[0], indicies2.shape[1])
+        
+        corrs = np.concatenate((indicies, indicies2), axis=0)
+        mask = np.random.choice(corrs.shape[1], self.num_kp)
+        corrs = corrs[:, mask, :]
+
+        new_size = (self.img_size, self.img_size)
+        img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_LINEAR)
+        img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_LINEAR)
+
+        '''
+        fig, axes = plt.subplots(1,2)
+        axes[0].imshow(img1)
+        axes[0].scatter(np.round(corrs[0,:,0]*2*256), np.round(corrs[0,:,1]*256), c='red', marker='x')
+
+        axes[1].imshow(img2)
+        axes[1].scatter(np.round((corrs[1,:,0]-0.5)*2*256), np.round(corrs[1,:,1]*256), c='blue', marker='x')
+
+        plt.show()
+        '''
+
+        imgR = two_images_side_by_side(img1, img2)
+        imgR = TF.to_tensor(imgR)
+
+        imgs = (imgR, 1)
+        dmap = (corrs, 1)
+
+        return imgs, dmap, valid_masks
+
+
+        breakpoint()
+        pass
+
+
 
 def test():
 
