@@ -21,6 +21,7 @@ class KittiDataset(Dataset):
         self.num_kp = num_kp
         self.transforms = self.kitti_tile # if split == 'train' else self.kitti_transform_test
         self.transforms = self.kitti_zoom
+        self.transforms = self.get_transform(transforms)
         self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split='train', transforms=self.transforms)
 
         # here we split 160 + 20 + 20, 160 train | 40 val
@@ -34,6 +35,20 @@ class KittiDataset(Dataset):
             self.ds._disparities = self.ds._disparities[160:]
         
         self.ds._has_built_in_disparity_mask = False
+
+    def get_transform(self, tfs):
+        if tfs == 'original':
+            return self.kitti_original
+        elif tfs == 'tile':
+            return self.kitti_tile
+        elif tfs == 'zoom':
+            return self.kitti_zoom
+        elif tfs == 'random_patch':
+            return self.kitti_random_patch
+        elif tfs == 'patch':
+            return self.kitti_patch
+        else:
+            return self.kitti_original
 
 
     def __len__(self):
@@ -382,6 +397,8 @@ class KittiDataset(Dataset):
         indicies2 = indicies2.reshape(1, indicies2.shape[0], indicies2.shape[1])
      
         corrs = np.concatenate((indicies, indicies2), axis=0)
+        if corrs.shape[1] == 0:
+            return self.kitti_tile(imgs, dmap, valid_masks)
         mask = np.random.choice(corrs.shape[1], self.num_kp)
         corrs = corrs[:, mask, :]
 
@@ -407,48 +424,263 @@ class KittiDataset(Dataset):
         imgs = (imgR, 1)
         dmap = (corrs, 1)
         return imgs, dmap, valid_masks
+    
+    def kitti_random_patch(self, imgs, dmap, valid_masks):
+        img1 = imgs[0]
+        img2 = imgs[1]
 
-    def kitti_transform_test(self, imgs, dmap, valid_masks):
+        img1 = np.array(img1)
+        img2 = np.array(img2)
+
+        dmap1 = dmap[0]
+        dmap2 = dmap[1]
+
+        indicies = np.argwhere(dmap1[0] > 0)
+        temp = np.copy(dmap1[0])
+        temp = temp[temp > 0]
         
+        indicies2 = np.copy(indicies).astype(np.float32)
+        indicies2[:, 1] = indicies2[:, 1] - temp
+
+        h2,w2,_ = img2.shape
+        
+        tgt_mask1 = indicies2[:, 1] > 0
+        tgt_mask2 = indicies2[:, 1] < w2
+        tgt_mask = np.logical_and(tgt_mask1, tgt_mask2)
+
+        indicies2 = indicies2[tgt_mask]
+        indicies = indicies[tgt_mask]
+
+        temp = temp[tgt_mask]
+
+        indicies = indicies.astype(np.float32)
+        indicies2 = indicies2.astype(np.float32)
+        
+        indicies = np.round(indicies)
+        indicies2 = np.round(indicies2)
+
+        indicies[:, [0,1]] = indicies[:, [1,0]]
+        indicies2[:, [0,1]] = indicies2[:, [1,0]] 
+    
+        mask = np.random.choice(indicies.shape[0], self.num_kp)
+        indicies = indicies[mask]
+        indicies2 = indicies2[mask]
+        temp = temp[indicies]
+
+        breakpoint()
+        h1,w1,_ = img1.shape
+
+        w_min = indicies[:, 0].min()
+        w_max = indicies[:, 0].max()
+
+        h_min = indicies[:, 1].min()
+        h_max = indicies[:, 1].max()
+    
+        # crop coords for img1
+        ws = random.randint(0, w_min)
+        we = random.randint(w_max, w1)
+        hs = random.randint(0, h_min)
+        he = random.randint(h_max, h1)
+
+        #crop coords for img2
+
+        breakpoint()
+        return imgs, dmap, valid_masks
+    
+    def kitti_patch(self, imgs, dmap, valid_masks):
+
+        img1 = imgs[0]
+        img2 = imgs[1]
+
+        img1 = np.array(img1)
+        img2 = np.array(img2)
+
+        dmap1 = dmap[0]
+        dmap2 = dmap[1]
+
+        indicies = np.argwhere(dmap1[0] > 0)
+        temp = np.copy(dmap1[0])
+        disps = temp[temp > 0]
+
+        indicies = indicies.astype(np.float32)
+        indicies2 = np.copy(indicies).astype(np.float32)
+        indicies2[:, 1] = indicies2[:, 1] - disps
+
+        indicies[:, [0,1]] = indicies[:, [1,0]]
+        indicies2[:, [0,1]] = indicies2[:, [1,0]] 
+
+        #random crop coords img1
+        h1,w1,_ = img1.shape
+        
+        x_c = random.randint(0, w1-self.img_size)
+        y_c = random.randint(0, h1-self.img_size)
+
+        img1 = img1[y_c:y_c+self.img_size, x_c:x_c+self.img_size, :]
+
+        mask_x1 = indicies[:, 0] > x_c
+        mask_x2 = indicies[:, 0] < x_c + self.img_size
+        mask_x = np.logical_and(mask_x1, mask_x2)
+        mask_y1 = indicies[:, 1] > y_c
+        mask_y2 = indicies[:, 1] < y_c + self.img_size
+        mask_y = np.logical_and(mask_y1, mask_y2)
+        mask_xy = np.logical_and(mask_x, mask_y)
+
+
+        indicies = indicies[mask_xy]
+        indicies2 = indicies2[mask_xy]
+        disps = disps[mask_xy]
+
+        indicies[:, 0] = indicies[:, 0] - x_c
+        indicies[:, 1] = indicies[:, 1] - y_c
+
+        mask_x_ = indicies2[:, 0] > 0
+        indicies2 = indicies2[mask_x_]
+        indicies = indicies[mask_x_]
+        disps = disps[mask_x_]
+
+        #check if indicies contain as much kp_s self.num_kp
+        
+        h2,w2,_ = img2.shape
+
+        if indicies2.shape[0] == 0:
+            return self.kitti_patch(imgs, dmap, valid_masks)
+
+        x_s = indicies2[:, 0].min()
+        x_e = indicies2[:, 0].max()
+        
+        y_s = indicies2[:, 1].min()
+        y_e = indicies2[:, 1].max()
+
+        diff_y = self.img_size - (y_e - y_s)
+
+        tt = max(0,int(y_s - diff_y))
+        tt2 = min(h2, y_e + diff_y) - self.img_size
+        y2_c = random.randint(tt, tt2)
+        
+        diff_x = self.img_size - (x_e - x_s)
+        if diff_x < 0:
+            x2_c = random.randint(int(x_s), int(x_e - self.img_size))
+        else:
+            x2_c = random.randint(max(0,int(x_s - diff_x)), min(w2, int(x_e + diff_x)) - self.img_size)
+        # cropping
+
+        if x2_c < 0:
+            x2_c += -x2_c
+
+        img2 = img2[y2_c:y2_c+self.img_size,x2_c:x2_c+self.img_size,:]
+
+        mask2_x1 = indicies2[:, 0] > x2_c
+        mask2_x2 = indicies2[:, 0] < x2_c + self.img_size
+        mask2_x = np.logical_and(mask2_x1, mask2_x2)
+        mask2_y1 = indicies2[:, 1] > y2_c
+        mask2_y2 = indicies2[:, 1] < y2_c + self.img_size
+        mask2_y = np.logical_and(mask2_y1, mask2_y2)
+        mask2_xy = np.logical_and(mask2_x, mask2_y)
+
+        indicies = indicies[mask2_xy]
+        indicies2 = indicies2[mask2_xy]
+        disps = disps[mask2_xy]
+
+        indicies2[:, 0] = indicies2[:, 0] - x2_c
+        indicies2[:, 1] = indicies2[:, 1] - y2_c
+
+        if indicies.shape[0] < self.num_kp:
+            return self.kitti_patch(imgs, dmap, valid_masks)
+        #assert indicies.shape[0] > self.num_kp
+
+        indicies[:, 0] /= 2*self.img_size
+        indicies[:, 1] /= self.img_size
+        indicies2[:, 0] /= 2*self.img_size
+        indicies2[:, 0] = indicies2[:, 0] + 0.5
+        indicies2[:, 1] /= self.img_size
+
+        indicies = indicies.reshape(1, indicies.shape[0], indicies.shape[1])
+        indicies2 = indicies2.reshape(1, indicies2.shape[0], indicies2.shape[1])
+
+        corrs = np.concatenate((indicies, indicies2), axis=0)
+        mask = np.random.choice(corrs.shape[1], self.num_kp)
+        corrs = corrs[:,mask,:]
+
+        '''
+        fig, axes = plt.subplots(1,2)
+        axes[0].imshow(img1)
+        axes[0].scatter(np.round(corrs[0,:,0]*2*256), np.round(corrs[0,:,1]*256), c='red', marker='x')
+
+        axes[1].imshow(img2)
+        axes[1].scatter(np.round((corrs[1,:,0]-0.5)*2*256), np.round(corrs[1,:,1]*256), c='blue', marker='x')
+
+        plt.show()
+        breakpoint()
+        '''
+        
+        imgR = two_images_side_by_side(img1, img2)
+        imgR = TF.to_tensor(imgR)
+        imgs = (imgR, 1)
+        dmap = (corrs, 1)
+
+        return imgs, dmap, valid_masks
+
+    def kitti_original(self, imgs, dmap, valid_masks):
+
         img1 = imgs[0]
         img2 = imgs[1]
         
         img1 = np.array(img1)
         img2 = np.array(img2)
-        oh, ow, oc = img1.shape
+
+        dmap1 = dmap[0]
+        dmap2 = dmap[1]
+
+        indicies = np.argwhere(dmap1[0] > 0)
         
-        fast = cv2.FastFeatureDetector_create()
-        
-        imgt = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
-        
-        kp = fast.detect(imgt, None)
-        #pix = cv2.drawKeypoints(img1, kp, None, color=(255,0,0))
-        
-        pts = 20
-        step = int(len(kp) / pts)
-        kp = kp[::step]
-        
-        kp = [[int(p.pt[0]), int(p.pt[1])] for p in kp]
-        kp = np.array(kp).astype(np.float32)
-        kp[:, 0] /= 2*ow
-        kp[:, 1] /= oh
-        
-        ksize = (5,5)
-        img1 = cv2.blur(img1, ksize)
-        img2 = cv2.blur(img2, ksize)
-        
-        new_size = (self.img_size, self.img_size)
-        img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_CUBIC)
-        img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_CUBIC)
-        
+        # temp is disparity
+        temp = np.copy(dmap1[0])
+        temp = temp[temp > 0]
+
+        indicies2 = np.copy(indicies).astype(np.float32)
+        indicies2[:, 1] = indicies2[:, 1] - temp 
+
+        h2,w2,_ = img2.shape
+
+        tgt_mask1 = indicies2[:, 1] > 0
+        tgt_mask2 = indicies2[:, 1] < w2
+        tgt_mask = np.logical_and(tgt_mask1, tgt_mask2)
+
+        indicies2 = indicies2[tgt_mask]
+        indicies = indicies[tgt_mask]
+
+        indicies = indicies.astype(np.float32)
+        indicies2 = indicies2.astype(np.float32)
+
+        indicies = np.round(indicies)
+        indicies2 = np.round(indicies2)
+
+        indicies[:, [0,1]] = indicies[:, [1,0]]
+        indicies2[:, [0,1]] = indicies2[:, [1,0]]
+
+        h1, w1, _ = img1.shape
+        h2, w2, _ = img2.shape
+
+        indicies[:, 0] /= 2*w1
+        indicies[:, 1] /= h1
+
+        indicies2[:, 0] /= 2*w2
+        indicies2[:, 0] = indicies2[:, 0] + 0.5 
+        indicies2[:, 1] /= h2
+
+        indicies = indicies.reshape(1, indicies.shape[0], indicies.shape[1])
+        indicies2 = indicies2.reshape(1, indicies2.shape[0], indicies2.shape[1])
+
+        corrs = np.concatenate((indicies, indicies2), axis=0)
+        mask = np.random.choice(corrs.shape[1], self.num_kp)
+        corrs = corrs[:, mask, :]
+
         imgR = two_images_side_by_side(img1, img2)
-        
         imgR = TF.to_tensor(imgR)
 
-        imgs = (imgR, img2)
-        
-        dmap = (kp, 0)
-        
+        imgs = (imgR, 1)
+        dmap = (corrs, 1)
+    
         return imgs, dmap, valid_masks
 
 class MiddleBury(Dataset):
