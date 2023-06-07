@@ -678,7 +678,7 @@ class KittiDataset(Dataset):
         h2,w2,_ = img2.shape
 
         if indicies2.shape[0] == 0:
-            return self.kitti_patch(imgs, dmap, valid_masks)
+            return self.kitti_rect_patch(imgs, dmap, valid_masks)
 
         x_s = indicies2[:, 0].min()
         x_e = indicies2[:, 0].max()
@@ -721,7 +721,7 @@ class KittiDataset(Dataset):
         indicies2[:, 1] = indicies2[:, 1] - y2_c
 
         if indicies.shape[0] < self.num_kp:
-            return self.kitti_patch(imgs, dmap, valid_masks)
+            return self.kitti_rect_patch(imgs, dmap, valid_masks)
         #assert indicies.shape[0] > self.num_kp
 
         indicies[:, 0] /= 2*self.img_size
