@@ -47,6 +47,8 @@ class KittiDataset(Dataset):
             return self.kitti_random_patch
         elif tfs == 'patch':
             return self.kitti_patch
+        elif tfs == 'rect_patch':
+            return self.kitti_rect_patch
         else:
             return self.kitti_original
 
@@ -556,6 +558,140 @@ class KittiDataset(Dataset):
         tt = max(0,int(y_s - diff_y))
         tt2 = min(h2, y_e + diff_y) - self.img_size
         y2_c = random.randint(tt, tt2)
+        
+        diff_x = self.img_size - (x_e - x_s)
+        if diff_x < 0:
+            x2_c = random.randint(int(x_s), int(x_e - self.img_size))
+        else:
+            x2_c = random.randint(max(0,int(x_s - diff_x)), min(w2, int(x_e + diff_x)) - self.img_size)
+        # cropping
+
+        if x2_c < 0:
+            x2_c += -x2_c
+
+        img2 = img2[y2_c:y2_c+self.img_size,x2_c:x2_c+self.img_size,:]
+
+        mask2_x1 = indicies2[:, 0] > x2_c
+        mask2_x2 = indicies2[:, 0] < x2_c + self.img_size
+        mask2_x = np.logical_and(mask2_x1, mask2_x2)
+        mask2_y1 = indicies2[:, 1] > y2_c
+        mask2_y2 = indicies2[:, 1] < y2_c + self.img_size
+        mask2_y = np.logical_and(mask2_y1, mask2_y2)
+        mask2_xy = np.logical_and(mask2_x, mask2_y)
+
+        indicies = indicies[mask2_xy]
+        indicies2 = indicies2[mask2_xy]
+        disps = disps[mask2_xy]
+
+        indicies2[:, 0] = indicies2[:, 0] - x2_c
+        indicies2[:, 1] = indicies2[:, 1] - y2_c
+
+        if indicies.shape[0] < self.num_kp:
+            return self.kitti_patch(imgs, dmap, valid_masks)
+        #assert indicies.shape[0] > self.num_kp
+
+        indicies[:, 0] /= 2*self.img_size
+        indicies[:, 1] /= self.img_size
+        indicies2[:, 0] /= 2*self.img_size
+        indicies2[:, 0] = indicies2[:, 0] + 0.5
+        indicies2[:, 1] /= self.img_size
+
+        indicies = indicies.reshape(1, indicies.shape[0], indicies.shape[1])
+        indicies2 = indicies2.reshape(1, indicies2.shape[0], indicies2.shape[1])
+
+        corrs = np.concatenate((indicies, indicies2), axis=0)
+        mask = np.random.choice(corrs.shape[1], self.num_kp)
+        corrs = corrs[:,mask,:]
+
+        '''
+        fig, axes = plt.subplots(1,2)
+        axes[0].imshow(img1)
+        axes[0].scatter(np.round(corrs[0,:,0]*2*256), np.round(corrs[0,:,1]*256), c='red', marker='x')
+
+        axes[1].imshow(img2)
+        axes[1].scatter(np.round((corrs[1,:,0]-0.5)*2*256), np.round(corrs[1,:,1]*256), c='blue', marker='x')
+
+        plt.show()
+        breakpoint()
+        '''
+        
+        imgR = two_images_side_by_side(img1, img2)
+        imgR = TF.to_tensor(imgR)
+        imgs = (imgR, 1)
+        dmap = (corrs, 1)
+
+        return imgs, dmap, valid_masks
+
+    def kitti_rect_patch(self, imgs, dmap, valid_masks):
+
+        img1 = imgs[0]
+        img2 = imgs[1]
+
+        img1 = np.array(img1)
+        img2 = np.array(img2)
+
+        dmap1 = dmap[0]
+        dmap2 = dmap[1]
+
+        indicies = np.argwhere(dmap1[0] > 0)
+        temp = np.copy(dmap1[0])
+        disps = temp[temp > 0]
+
+        indicies = indicies.astype(np.float32)
+        indicies2 = np.copy(indicies).astype(np.float32)
+        indicies2[:, 1] = indicies2[:, 1] - disps
+
+        indicies[:, [0,1]] = indicies[:, [1,0]]
+        indicies2[:, [0,1]] = indicies2[:, [1,0]] 
+
+        #random crop coords img1
+        h1,w1,_ = img1.shape
+        
+        x_c = random.randint(0, w1-self.img_size)
+        y_c = random.randint(0, h1-self.img_size)
+
+        img1 = img1[y_c:y_c+self.img_size, x_c:x_c+self.img_size, :]
+
+        mask_x1 = indicies[:, 0] > x_c
+        mask_x2 = indicies[:, 0] < x_c + self.img_size
+        mask_x = np.logical_and(mask_x1, mask_x2)
+        mask_y1 = indicies[:, 1] > y_c
+        mask_y2 = indicies[:, 1] < y_c + self.img_size
+        mask_y = np.logical_and(mask_y1, mask_y2)
+        mask_xy = np.logical_and(mask_x, mask_y)
+
+
+        indicies = indicies[mask_xy]
+        indicies2 = indicies2[mask_xy]
+        disps = disps[mask_xy]
+
+        indicies[:, 0] = indicies[:, 0] - x_c
+        indicies[:, 1] = indicies[:, 1] - y_c
+
+        mask_x_ = indicies2[:, 0] > 0
+        indicies2 = indicies2[mask_x_]
+        indicies = indicies[mask_x_]
+        disps = disps[mask_x_]
+
+        #check if indicies contain as much kp_s self.num_kp
+        
+        h2,w2,_ = img2.shape
+
+        if indicies2.shape[0] == 0:
+            return self.kitti_patch(imgs, dmap, valid_masks)
+
+        x_s = indicies2[:, 0].min()
+        x_e = indicies2[:, 0].max()
+        
+        y_s = indicies2[:, 1].min()
+        y_e = indicies2[:, 1].max()
+
+        diff_y = self.img_size - (y_e - y_s)
+
+        tt = max(0,int(y_s - diff_y))
+        tt2 = min(h2, y_e + diff_y) - self.img_size
+        y2_c = random.randint(tt, tt2)
+        y2_c = y_c
         
         diff_x = self.img_size - (x_e - x_s)
         if diff_x < 0:
