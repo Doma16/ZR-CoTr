@@ -9,7 +9,6 @@ class Transformer(nn.Module):
                  return_intermediate=False,
                  dropout=0.1):
         super(Transformer, self).__init__()
-
         self.encoder = TransformerEncoder(emb_dim, nhead, num_encoder_layers, dropout=dropout)
         self.decoder = TransformerDecoder(emb_dim, nhead, num_decoder_layers, return_intermediate, dropout=dropout)
 
@@ -27,8 +26,7 @@ class Transformer(nn.Module):
         b, c, h, w = x.shape
         x = x.flatten(2).permute(2,0,1)
         pos = pos.flatten(2).permute(2,0,1)
-        mask = mask.flatten(1) 
-        
+        mask = mask.flatten(1)
         tgt = torch.zeros_like(query)
         memory = self.encoder(x, src_mask=mask, pos=pos)
         

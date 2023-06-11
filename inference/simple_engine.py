@@ -154,8 +154,8 @@ class simple_engine():
             assert p1.shape[1] == p2.shape[1]
             # transforms
             p = two_images_side_by_side(p1,p2)
-            #p = TF.to_tensor(p).float()[None]
-            p = TF.normalize(TF.to_tensor(p), (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)).float()[None]
+            p = TF.to_tensor(p).float()[None]
+            #p = TF.normalize(TF.to_tensor(p), (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)).float()[None]
             p = p.to(device)
             query = torch.from_numpy(query)[None].float().to(device)
 
@@ -184,11 +184,11 @@ class simple_engine():
                 s2,e2 = w2_se[i]
                 sh,eh = h_se[j]
 
-                pred_list = []
-                for part in range(int(((e2-s2)/(IMG_SIZE//2))-1)):
-                    print(part*(IMG_SIZE//2), part*(IMG_SIZE//2)+IMG_SIZE)
+                pred_list = []   
+                for part in range(5):
+                    #print(part*(IMG_SIZE//2), part*(IMG_SIZE//2)+IMG_SIZE)
                     img_in1 = img1[sh:eh,s1:e1,:]
-                    img_in2 = img2[sh:eh,s2+part*(IMG_SIZE//2):s2+part*(IMG_SIZE//2)+IMG_SIZE,:]
+                    img_in2 = img2[sh:eh,s2+part*(IMG_SIZE//8):s2+part*(IMG_SIZE//8)+IMG_SIZE,:]
                     query_in = query.copy()
                     mask = (query_in[:, 0] >= s1) & (query_in[:, 1] >= sh) & (query_in[:, 0] <= e1) & (query_in[:, 1] <= eh)
                     query_in =  query_in.astype(np.float32)
@@ -200,7 +200,7 @@ class simple_engine():
                     pred[~mask, 2] = np.inf
                     #pred[:, 0] -= 0.5
                     pred[:, 0] *= 2 * IMG_SIZE
-                    pred[:, 0] += (s2 + part*(IMG_SIZE//2))
+                    pred[:, 0] += (s2 + part*(IMG_SIZE//8))
                     pred[:, 1] *= (eh - sh)
                     pred[:, 1] += sh
                     pred_list.append(pred)
@@ -232,6 +232,7 @@ class simple_engine():
         query = torch.tensor(query)
 
         pred = self.model(img, query)['pred_corrs']
+
         return pred
 
     def tiling_predict(self, img1, img2, query):

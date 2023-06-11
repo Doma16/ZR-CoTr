@@ -26,8 +26,8 @@ NUM_KP = 100
 #model params
 EMB_DIM = 256
 NHEAD = 8
-NUM_ENCODER_LAYERS = 6
-NUM_DECODER_LAYERS = 6
+NUM_ENCODER_LAYERS = 4
+NUM_DECODER_LAYERS = 4
 RETURN_INTERMEDIATE = True
 DROPOUT = 0.1
 NLAYERS = 3
@@ -40,8 +40,8 @@ def start(path='../dataset'):
     #still testing on cpu !
     device = torch.device('cpu')
     
-    #dataset = MiddleBury(root=path, num_kp=NUM_KP)
-    dataset = KittiDataset(root=path, transforms='tile',num_kp=NUM_KP)
+    #dataset = MiddleBury(root=path, transforms='original', num_kp=NUM_KP)
+    dataset = KittiDataset(root=path, transforms='patch',num_kp=NUM_KP)
     loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
     
     torch.cuda.empty_cache()
@@ -78,50 +78,13 @@ def start(path='../dataset'):
     
     opt = optim.Adam(opt_list)
     
-    for _ in range(EPOCHS):
+    for epo in range(EPOCHS):
+        print(f'Epoch: {epo}')
         for batchid, (img, _, corrs) in enumerate(loader):
             
-            img = img.to(device)
-            corrs = corrs.to(device)
-
-            query = corrs[:, 0, :, :]
-            target = corrs[:, 1, :, :]
             
-            opt.zero_grad()
-            
-            pred = model(img, query)['pred_corrs']
-            loss = torch.mean((pred-target)**2)
-            
-            img_reverse = torch.cat([img[..., IMG_SIZE:], img[..., :IMG_SIZE]], axis=-1)
-            query_reverse = pred.clone()
-            query_reverse[..., 0] = query_reverse[..., 0] - 0.5
-        
-            cycle = model(img_reverse, query_reverse)['pred_corrs']
-            cycle[..., 0] = cycle[..., 0] - 0.5 
-        
-            mask = torch.norm(cycle - query, dim=-1) < 10 / IMG_SIZE
-            cycle_loss = 0
-            if mask.sum() > 0:
-                cycle_loss = F.mse_loss(cycle[mask], query[mask])
-                loss += cycle_loss
-            
-            loss_data = loss.data.item()
-            if np.isnan(loss_data):
-                print('loss is nan')
-                opt.zero_grad()
-            else:
-                loss.backward()
-            opt.step()    
-
-            if batchid % 10 == 0:
-                #torch.save(model.state_dict(), f'{path}/saved/bid{batchid}.pth')
-                print(f'Loss in b_id{batchid}: { loss.detach().numpy() }')
-                pck = PCK_N(img, query, pred, target, threshold=1)
-                aepe = AEPE(img, query, pred, target)
-                print(f'PCK: {pck}, AEPE: {aepe}')
-                plot_predictions(img, query, pred, target, batchid, 'plot_test')
-                
-
+            if batchid % 20 == 0:
+                print(batchid)
 
         #plt.imshow(preview)
         #print(preview.shape)

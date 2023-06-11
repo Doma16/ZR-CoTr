@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from torch.utils.data import DataLoader
 
-from dataset import KittiDataset
+from dataset import KittiDataset, MiddleBury 
 from utils import plot_predictions, plot_real, AEPE, PCK_N
 
 from torchvision.utils import save_image
@@ -17,9 +17,11 @@ import matplotlib.pyplot as plt
 
 import torchvision.transforms.functional as TF
 
+from inference.simple_engine import simple_engine
+
 BATCH_SIZE = 1
 IMG_SIZE = 256
-NUM_KP = 21
+NUM_KP = 100
 
 EMB_DIM = 256
 NHEAD = 8
@@ -29,11 +31,13 @@ RETURN_INTERMEDIATE = True
 DROPOUT = 0.1
 NLAYERS = 3
 
+PATH = './saved/ep400_bid39_zoom.pth'
 
 device = torch.device('cpu')
 
-dataset = KittiDataset(root = '../dataset', split='val', num_kp=NUM_KP)
-loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+dataset = MiddleBury(root = '../dataset', num_kp=NUM_KP)
+dataset = KittiDataset(root = '../dataset', transforms='zoom' ,split='val', num_kp=NUM_KP)
+loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
 
 model = COTR(
     emd_dim=EMB_DIM,
@@ -44,11 +48,21 @@ model = COTR(
     dropout=DROPOUT,
     nlayers=NLAYERS
 )
-model = model.to(device)
 
-model.load_state_dict(torch.load('./saved/ep400_bid39.pth'))
+model.load_state_dict(torch.load(PATH))
+model = model.to(device)
 model.eval()
 
+engine = simple_engine(model)
+
+losses = []
+pck1s = []
+pck3s = []
+pck5s = []
+aepes = []
+
+
+breakpoint() #(img, w, corrs) for kittistereo # (img, w, corrs, vm) for middlebury
 for batchid, (img, w, corrs) in enumerate(loader):
     
     img = img.to(device)
@@ -77,13 +91,34 @@ for batchid, (img, w, corrs) in enumerate(loader):
     if np.isnan(loss_data):
         print('loss is nan')
 
+    losses.append(loss.detach())
+    pck1s.append(PCK_N(img, query, pred, target, threshold=1))
+    pck3s.append(PCK_N(img, query, pred, target, threshold=3))
+    pck5s.append(PCK_N(img, query, pred, target, threshold=5))
+    aepes.append(AEPE(img, query, pred, target))
+
     if batchid % 2 == 0:
-        print(f'Loss     in bid_{batchid}: {loss.cpu().detach().numpy():.8f}')
-        pck1 = PCK_N(img, query, pred, target, threshold=1)
-        pck3 = PCK_N(img, query, pred, target, threshold=3)
-        pck5 = PCK_N(img, query, pred, target, threshold=5)
-        aepe = AEPE(img, query, pred, target)
-        print(f' PCK-1px: {pck1}, PCK-3px: {pck3}, PCK-5px: {pck5}, AEPE: {aepe}')
-        plot_predictions(img, query, pred, target, 'example_1', 'plot_test')
-    #plot_real(w,query,pred)
+        #print(f'Loss     in bid_{batchid}: {loss.cpu().detach().numpy():.8f}')
+        #pck1 = PCK_N(img, query, pred, target, threshold=1)
+        #pck3 = PCK_N(img, query, pred, target, threshold=3)
+        #pck5 = PCK_N(img, query, pred, target, threshold=5)
+        #aepe = AEPE(img, query, pred, target)
+        #print(f' PCK-1px: {pck1}, PCK-3px: {pck3}, PCK-5px: {pck5}, AEPE: {aepe}')
+        #breakpoint()
+        #temp_img = img
+        #temp_img[..., 256:] = temp_img[..., :256]
+        #plot_predictions(temp_img, query, cycle+0.5, query, 'example_1', 'plot_test')
+        #engine.interpolation_disparity_predict(img)
+        #engine.simple_predict()
+        pass
+        #breakpoint()
     #sketch 
+
+
+print(f'Loss avg: {np.mean(losses)}')
+print(f'PCK 1px avg: {np.mean(pck1s)}')
+print(f'PCK 3px avg: {np.mean(pck3s)}')
+print(f'PCK 5px avg: {np.mean(pck5s)}')
+print(f'AEPE avg: {np.mean(aepes)}')
+
+breakpoint()

@@ -24,7 +24,7 @@ class KittiDataset(Dataset):
         self.transforms = self.get_transform(transforms)
         self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split='train', transforms=self.transforms)
 
-        # here we split 160 + 20 + 20, 160 train | 40 val
+        # here we split 160 + 40, 160 train | 40 val
         assert split in ('train', 'val')
         self.ds._images = self.ds._images[::2]
         if split == 'train':
@@ -277,16 +277,18 @@ class KittiDataset(Dataset):
         img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_LINEAR)
         
         '''
+        '''
         fig, axes = plt.subplots(1,2)
         axes[0].imshow(img1)
         axes[0].scatter(np.round(corrs[0,:,0]*2*256), np.round(corrs[0,:,1]*256), c='red', marker='x')
+        axes[0].axis('off')
 
         axes[1].imshow(img2)
         axes[1].scatter(np.round((corrs[1,:,0]-0.5)*2*256), np.round(corrs[1,:,1]*256), c='blue', marker='x')
+        axes[1].axis('off')
 
         plt.show()
         breakpoint()
-        '''
         
         imgR = two_images_side_by_side(img1, img2)
 
@@ -353,6 +355,7 @@ class KittiDataset(Dataset):
         #zoom in x coords
         start_x = random.randint(0,ow-self.img_size)
         img1 = img1[:,start_x:start_x+self.img_size,:]
+
 
         mask_shift = np.logical_and(indicies[:,0] > start_x, indicies[:,0] < start_x+self.img_size)
 
@@ -609,9 +612,11 @@ class KittiDataset(Dataset):
         fig, axes = plt.subplots(1,2)
         axes[0].imshow(img1)
         axes[0].scatter(np.round(corrs[0,:,0]*2*256), np.round(corrs[0,:,1]*256), c='red', marker='x')
+        axes[0].axis('off')
 
         axes[1].imshow(img2)
         axes[1].scatter(np.round((corrs[1,:,0]-0.5)*2*256), np.round(corrs[1,:,1]*256), c='blue', marker='x')
+        axes[1].axis('off')
 
         plt.show()
         breakpoint()
@@ -760,6 +765,8 @@ class KittiDataset(Dataset):
     
     def kitti_s_patch(self, imgs, dmap, valid_masks):
 
+        edge_threshold = 8
+
         img1 = imgs[0]
         img2 = imgs[1]
 
@@ -769,9 +776,11 @@ class KittiDataset(Dataset):
         dmap1 = dmap[0]
         dmap2 = dmap[1]
 
-        indicies = np.argwhere(dmap1[0] > 0)
+        d_value = 1
+
+        indicies = np.argwhere(dmap1[0] > d_value)
         temp = np.copy(dmap1[0])
-        disps = temp[temp > 0]
+        disps = temp[temp > d_value]
 
         indicies = indicies.astype(np.float32)
         indicies2 = np.copy(indicies).astype(np.float32)
@@ -788,11 +797,11 @@ class KittiDataset(Dataset):
 
         img1 = img1[y_c:y_c+self.img_size, x_c:x_c+self.img_size, :]
 
-        mask_x1 = indicies[:, 0] > x_c
-        mask_x2 = indicies[:, 0] < x_c + self.img_size
+        mask_x1 = indicies[:, 0] > x_c + edge_threshold
+        mask_x2 = indicies[:, 0] < x_c + self.img_size - edge_threshold 
         mask_x = np.logical_and(mask_x1, mask_x2)
-        mask_y1 = indicies[:, 1] > y_c
-        mask_y2 = indicies[:, 1] < y_c + self.img_size
+        mask_y1 = indicies[:, 1] > y_c + edge_threshold
+        mask_y2 = indicies[:, 1] < y_c + self.img_size - edge_threshold
         mask_y = np.logical_and(mask_y1, mask_y2)
         mask_xy = np.logical_and(mask_x, mask_y)
 
@@ -839,15 +848,16 @@ class KittiDataset(Dataset):
         if x2_c < 0:
             x2_c += -x2_c
 
-        x2_c = x_c
+        r_c = random.choice([128, 96, 64, 32, 0])
+        x2_c = max(0, round(x_s) - r_c)
 
         img2 = img2[y2_c:y2_c+self.img_size,x2_c:x2_c+self.img_size,:]
 
-        mask2_x1 = indicies2[:, 0] > x2_c
-        mask2_x2 = indicies2[:, 0] < x2_c + self.img_size
+        mask2_x1 = indicies2[:, 0] > x2_c + edge_threshold
+        mask2_x2 = indicies2[:, 0] < x2_c + self.img_size - edge_threshold
         mask2_x = np.logical_and(mask2_x1, mask2_x2)
-        mask2_y1 = indicies2[:, 1] > y2_c
-        mask2_y2 = indicies2[:, 1] < y2_c + self.img_size
+        mask2_y1 = indicies2[:, 1] > y2_c + edge_threshold
+        mask2_y2 = indicies2[:, 1] < y2_c + self.img_size - edge_threshold
         mask2_y = np.logical_and(mask2_y1, mask2_y2)
         mask2_xy = np.logical_and(mask2_x, mask2_y)
 
@@ -886,10 +896,10 @@ class KittiDataset(Dataset):
         plt.show()
         breakpoint()
         '''
-        
+
         imgR = two_images_side_by_side(img1, img2)
-        #imgR = TF.to_tensor(imgR)
-        imgR = TF.normalize(TF.to_tensor(imgR), (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)).float()
+        imgR = TF.to_tensor(imgR)
+        #imgR = TF.normalize(TF.to_tensor(imgR), (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)).float()
         imgs = (imgR, 1)
         dmap = (corrs, 1)
 
@@ -897,6 +907,15 @@ class KittiDataset(Dataset):
 
     def kitti_original(self, imgs, dmap, valid_masks):
 
+        '''
+        fig, axes = plt.subplots(2,1)
+        axes[0].imshow(imgs[0])
+        axes[1].imshow(dmap[0][0], cmap='gray')
+        axes[0].axis('off')
+        axes[1].axis('off')
+        plt.show()
+        breakpoint()
+        '''
         img1 = imgs[0]
         img2 = imgs[1]
         
@@ -985,6 +1004,17 @@ class MiddleBury(Dataset):
         img1 = imgs[0]
         img2 = imgs[1]
 
+        '''
+        fig, axes = plt.subplots(2, 1)
+        axes[0].imshow(imgs[0])
+        axes[1].imshow(dmap[0][0], cmap='gray')
+        axes[0].axis('off')
+        axes[1].axis('off')
+        
+        plt.show()
+        breakpoint()
+        '''
+
         img1 = np.array(img1)
         img2 = np.array(img2)
 
@@ -1001,6 +1031,7 @@ class MiddleBury(Dataset):
 
         img1 = np.array(img1)
         img2 = np.array(img2)
+
         oh, ow, oc = img1.shape
 
         dmap1 = dmap[0]

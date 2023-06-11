@@ -48,32 +48,35 @@ def two_images_vertical(img1, img2):
 
     return canvas
 
-def plot_real(img, query, pred):
+def plot_real(img, query, pred, real):
 
     img = img.cpu().detach().numpy()
-    query = query.cpu().detach().numpy()
-    pred = pred.cpu().detach().numpy()
 
     img = np.copy(img)
     query = np.copy(query)
     pred = np.copy(pred)
+    real = np.copy(real)
 
-    b,h,w,c = img.shape
+    b,c,h,w = img.shape
     img = img[0]
-    query = query[0]
-    pred = pred[0]
 
-    num_show = 10
+    img = img.transpose(1,2,0)
+    img = two_images_vertical(img[:,:w//2,:], img[:,w//2:,:])
+
+    num_show = 30
 
     if query.shape[0] > num_show:
         query = query[:num_show, :]
         pred = pred[:num_show, :]
+        real = real[:num_show, :]
 
-    query[:, 0] = np.round(query[:, 0] * 2*w)
-    pred[:, 0] = np.round((pred[:, 0]-0.5) * 2*w)
+    query[:, 0] = np.round(query[:, 0])
+    pred[:, 0] = np.round(pred[:, 0])
+    real[:, 0] = np.round(real[:, 0])
     
-    query[:, 1] = np.round(query[:, 1] * h//2)
-    pred[:, 1] = np.round(pred[:, 1] * h//2 + h//2)
+    query[:, 1] = np.round(query[:, 1])
+    pred[:, 1] = np.round(pred[:, 1]+h)
+    real[:, 1] = np.round(real[:, 1]+h)
 
     col = [0.0,0.6,0.1]
 
@@ -86,11 +89,29 @@ def plot_real(img, query, pred):
     x_p = pred[:, 0]
     y_p = pred[:, 1]
 
+    x_r = real[:, 0]
+    y_r = real[:, 1]
+
     plt.imshow(img)
 
     X_true = np.stack([x_q, x_p])
     Y_true = np.stack([y_q, y_p])
 
+    X_real = np.stack([x_q, x_r])
+    Y_real = np.stack([y_q, y_r])
+
+    '''
+    plt.plot(
+        X_real, Y_real,
+        alpha=alpha,
+        linestyle='-',
+        linewidth=lw,
+        aa=False,
+        color=[0.6, 0.1, 0],
+    )
+    plt.scatter(X_real, Y_real)
+    '''
+    
     plt.plot(
         X_true, Y_true,
         alpha=alpha,
@@ -99,8 +120,8 @@ def plot_real(img, query, pred):
         aa=False,
         color=col,
     )
-
     plt.scatter(X_true, Y_true)
+
     plt.show()
 
 
@@ -123,7 +144,7 @@ def plot_predictions(img, query, pred, target, b_id, file):
     pred = pred[0]
     target = target[0]
 
-    num_show = 10
+    num_show = 20
 
     if query.shape[0] > num_show:
         query = query[:num_show,:]

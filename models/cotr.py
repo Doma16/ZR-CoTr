@@ -84,7 +84,6 @@ class COTR(nn.Module):
         
         #additional embedding after backbone for img
         y = self.proj_x(y)
-        
         #transformer
         y = self.transformer(y, mask, queries, pos)[0]
         

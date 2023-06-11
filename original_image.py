@@ -13,7 +13,7 @@ from inference.simple_engine import simple_engine
 from dataset import KittiDataset, MiddleBury
 from torch.utils.data import DataLoader
 
-PATH_MODEL = './saved/ep400_bid39_rect2.pth'
+PATH_MODEL = './saved/ep400_bid39.pth'
 
 EMB_DIM = 256
 NHEAD = 8
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         ind2 = ind2[mask, :]
 
         query_pred = engine.original_image_predict(img, query)
-        plot_real(img, query_pred[:,:2], query_pred[:,2:], query_pred[:, 2:])
+        plot_real(img, query_pred[:,:2], query_pred[:,2:], query_pred[:,2:])
         breakpoint()
         print(batchid, img.shape)
         pass

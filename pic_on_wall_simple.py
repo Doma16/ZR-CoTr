@@ -23,16 +23,16 @@ def main():
     )
     model.load_state_dict(torch.load(PATH_MODEL))
 
-    img_a = imageio.imread('./pics/imgs/000020_10.png', pilmode='RGB')
-    img_b = imageio.imread('./pics/imgs/000020_11.png', pilmode='RGB')
+    img_a = imageio.imread('./pics/imgs/paint_1.JPG', pilmode='RGB')
+    img_b = imageio.imread('./pics/imgs/paint_2.jpg', pilmode='RGB')
     rep_img = imageio.imread('./pics/imgs/Meisje_met_de_parel.jpg', pilmode='RGB')
     rep_mask = np.ones(rep_img.shape[:2])
     #plt.imshow(img_a)
     #plt.show()
-    lu_corner = [490, 218]
-    ru_corner = [580, 217]
-    lb_corner = [280, 353]
-    rb_corner = [654, 357]
+    lu_corner = [932, 1022]
+    ru_corner = [2506, 896]
+    lb_corner = [900, 2937]
+    rb_corner = [2455, 3100]
     query = np.array([lu_corner,ru_corner,lb_corner, rb_corner]).astype(np.float32)
     rep_h, rep_w, _ = rep_img.shape
     rep_coord = np.array([[0,0], [rep_w,0], [0,rep_h], [rep_w, rep_h]]).astype(np.float32)
