@@ -24,6 +24,13 @@ class KittiDataset(Dataset):
         self.transforms = self.get_transform(transforms)
         self.ds = torchvision.datasets.Kitti2015Stereo(root=root, split='train', transforms=self.transforms)
 
+
+        self.max = 0
+        self.min = 100
+        self.averages = []
+        self.r_max = 0
+        self.r_min = np.inf
+        self.r_averages = []
         # here we split 160 + 40, 160 train | 40 val
         assert split in ('train', 'val')
         self.ds._images = self.ds._images[::2]
@@ -270,13 +277,27 @@ class KittiDataset(Dataset):
      
         corrs = np.concatenate((indicies, indicies2), axis=0)
         mask = np.random.choice(corrs.shape[1], self.num_kp)
+        curr_val_resize = (256*2*(corrs[0, : , 0] - (corrs[1, : , 0]-0.5))).max()
+
+        self.r_averages.append(curr_val_resize)
+        if curr_val_resize > self.r_max:
+            self.r_max = curr_val_resize
+        if curr_val_resize < self.r_min:
+            self.r_min = curr_val_resize
+
+        print()
+        print('img1_r: ',img1.shape)
+        print('img2_r: ',img2.shape)
+        print('max_disp_r: ', self.r_max)
+        print('min_disp_r: ', self.r_min)
+        print('avg_disp_r: ', sum(self.r_averages)/len(self.r_averages))
+        
         corrs = corrs[:, mask, :]
 
         new_size = (self.img_size, self.img_size)
         img1 = cv2.resize(img1, new_size, interpolation=cv2.INTER_LINEAR)
         img2 = cv2.resize(img2, new_size, interpolation=cv2.INTER_LINEAR)
         
-        '''
         '''
         fig, axes = plt.subplots(1,2)
         axes[0].imshow(img1)
@@ -289,7 +310,7 @@ class KittiDataset(Dataset):
 
         plt.show()
         breakpoint()
-        
+        '''
         imgR = two_images_side_by_side(img1, img2)
 
         imgR = TF.to_tensor(imgR)
@@ -502,8 +523,25 @@ class KittiDataset(Dataset):
         img1 = np.array(img1)
         img2 = np.array(img2)
 
+
         dmap1 = dmap[0]
         dmap2 = dmap[1]
+        
+        curr_val = dmap1.max()
+        self.averages.append(curr_val)
+        if self.max < curr_val:
+            self.max = curr_val
+        if self.min > curr_val:
+            self.min = curr_val
+
+        '''
+        '''
+        print()
+        print(f'img1: {img1.shape}')
+        print(f'img2: {img2.shape}')
+        print('max_disp: ',self.max)
+        print('min_disp: ',self.min)
+        print('avg_disp: ',sum(self.averages)/len(self.averages))
 
         indicies = np.argwhere(dmap1[0] > 0)
         temp = np.copy(dmap1[0])
@@ -621,6 +659,21 @@ class KittiDataset(Dataset):
         plt.show()
         breakpoint()
         '''
+
+        curr_val_resize = (256*2*(corrs[0, : , 0] - (corrs[1, : , 0]-0.5))).max()
+
+        self.r_averages.append(curr_val_resize)
+        if curr_val_resize > self.r_max:
+            self.r_max = curr_val_resize
+        if curr_val_resize < self.r_min:
+            self.r_min = curr_val_resize
+
+        print()
+        print('img1_r: ',img1.shape)
+        print('img2_r: ',img2.shape)
+        print('max_disp_r: ', self.r_max)
+        print('min_disp_r: ', self.r_min)
+        print('avg_disp_r: ', sum(self.r_averages)/len(self.r_averages))
         
         imgR = two_images_side_by_side(img1, img2)
         imgR = TF.to_tensor(imgR)
@@ -980,6 +1033,12 @@ class KittiDataset(Dataset):
 class MiddleBury(Dataset):
     def __init__(self, root, split='train', transforms = None, img_size=256, num_kp=100, download=False):
         super().__init__()
+        self.min = np.inf
+        self.max = 0
+        self.averages = []
+        self.r_min = np.inf
+        self.r_max = 0
+        self.r_averages = []
         self.img_size = img_size
         self.root = root
         self.split = split
@@ -1037,6 +1096,20 @@ class MiddleBury(Dataset):
         dmap1 = dmap[0]
         dmap2 = dmap[1]
 
+        curr_val = dmap1.max()
+        if curr_val > self.max:
+            self.max = curr_val
+        if curr_val < self.min:
+            self.min = curr_val
+        self.averages.append(curr_val)
+
+        print()
+        print('img1: ',img1.shape)
+        print('img2: ',img2.shape)
+        print('max_disp: ', self.max)
+        print('min_disp: ', self.min)
+        print('avg_disp: ', sum(self.averages)/len(self.averages))
+
         vm1 = valid_masks[0]
         vm2 = valid_masks[1]
 
@@ -1090,6 +1163,20 @@ class MiddleBury(Dataset):
 
         plt.show()
         '''
+        curr_val_resize = (256*2*(corrs[0, : , 0] - (corrs[1, : , 0]-0.5))).max()
+
+        self.r_averages.append(curr_val_resize)
+        if curr_val_resize > self.r_max:
+            self.r_max = curr_val_resize
+        if curr_val_resize < self.r_min:
+            self.r_min = curr_val_resize
+
+        print()
+        print('img1_r: ',img1.shape)
+        print('img2_r: ',img2.shape)
+        print('max_disp_r: ', self.r_max)
+        print('min_disp_r: ', self.r_min)
+        print('avg_disp_r: ', sum(self.r_averages)/len(self.r_averages))
 
         imgR = two_images_side_by_side(img1, img2)
         imgR = TF.to_tensor(imgR)

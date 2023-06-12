@@ -20,7 +20,7 @@ BATCH_SIZE = 1
 LR = 1e-4
 LR_BB = 0
 IMG_SIZE = 256
-EPOCHS = 1000
+EPOCHS = 1
 NUM_KP = 100
 
 #model params
@@ -40,8 +40,8 @@ def start(path='../dataset'):
     #still testing on cpu !
     device = torch.device('cpu')
     
-    #dataset = MiddleBury(root=path, transforms='original', num_kp=NUM_KP)
-    dataset = KittiDataset(root=path, transforms='patch',num_kp=NUM_KP)
+    #dataset = MiddleBury(root=path, num_kp=NUM_KP)
+    dataset = KittiDataset(root=path, transforms='tile',num_kp=NUM_KP)
     loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
     
     torch.cuda.empty_cache()
@@ -81,7 +81,6 @@ def start(path='../dataset'):
     for epo in range(EPOCHS):
         print(f'Epoch: {epo}')
         for batchid, (img, _, corrs) in enumerate(loader):
-            
             
             if batchid % 20 == 0:
                 print(batchid)
