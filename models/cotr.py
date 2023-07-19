@@ -77,11 +77,12 @@ class COTR(nn.Module):
         y, mask = y.decompose()
         assert mask is not None
         #embedding queries
+
         b, q, _ = queries.shape
         queries = queries.reshape(-1,2)
         queries = self.proj_q(queries).reshape(b,q,-1)
         queries = queries.permute(1,0,2)
-        
+
         #additional embedding after backbone for img
         y = self.proj_x(y)
         #transformer

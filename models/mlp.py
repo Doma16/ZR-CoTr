@@ -9,7 +9,7 @@ class MLP(nn.Module):
         self.layers = nn.ModuleList(nn.Linear(n,k) for n, k in zip([input_dim] + h, h + [output_dim]))
 
     def forward(self, x):
-
+        
         for i, layer in enumerate(self.layers):
             x = torch.relu(layer(x)) if i < self.nlayers - 1 else layer(x)
         

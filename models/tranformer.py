@@ -24,11 +24,13 @@ class Transformer(nn.Module):
                 
     def forward(self, x, mask, query, pos):
         b, c, h, w = x.shape
+        breakpoint()
         x = x.flatten(2).permute(2,0,1)
         pos = pos.flatten(2).permute(2,0,1)
         mask = mask.flatten(1)
         tgt = torch.zeros_like(query)
         memory = self.encoder(x, src_mask=mask, pos=pos)
+        breakpoint()
         
         hs = self.decoder(tgt, memory, memory_key_mask=mask, pos=pos, query=query)
         

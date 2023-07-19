@@ -31,12 +31,12 @@ RETURN_INTERMEDIATE = True
 DROPOUT = 0.1
 NLAYERS = 3
 
-PATH = './saved/ep400_bid39_zoom.pth'
+PATH = './saved/ep400_bid39.pth'
 
 device = torch.device('cpu')
 
 dataset = MiddleBury(root = '../dataset', num_kp=NUM_KP)
-dataset = KittiDataset(root = '../dataset', transforms='zoom' ,split='val', num_kp=NUM_KP)
+dataset = KittiDataset(root = '../dataset', transforms='tile' ,split='val', num_kp=NUM_KP)
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
 
 model = COTR(
@@ -49,7 +49,7 @@ model = COTR(
     nlayers=NLAYERS
 )
 
-model.load_state_dict(torch.load(PATH))
+model.load_state_dict(torch.load(PATH, map_location=device))
 model = model.to(device)
 model.eval()
 
