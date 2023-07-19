@@ -2,4 +2,4 @@
 
 tema CoTr - Correspondence Transformer for Matching Across Images
 
-Više u "Određivanje_korespondencija_u_slikama_primjenom_pažnje-2-2.pdf".
+<img src='/example.png' alt='image' title='gen image' style='width: 600px'>
